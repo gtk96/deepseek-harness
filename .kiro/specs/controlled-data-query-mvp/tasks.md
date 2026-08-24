@@ -2,13 +2,51 @@
 
 > 本任务清单以 [需求文档](requirements.md) 和 [设计文档](design.md) 为准。现有工作树包含未提交的探索性实现；执行任务前必须逐文件核对，不得盲目保留、覆盖或删除。
 
-- [x] 1. 整理当前分支与现有实现
+- [ ] 1. 整理当前分支与现有实现
   - 确认 `dic-be`、`dic-fe` 和 DSH 分别位于 `feat/controlled-data-query-mvp` 或约定的同名功能分支。
   - 记录三个仓库的 `git status`，逐文件对照 Spec 分类为保留、修改或移除。
   - 确认未提交内容不包含凭据、真实身份断言、原始生产 SQL 或误写的环境配置。
   - 运行现有定向测试建立基线；不得以删除失败测试恢复绿色。
   - _Requirements: 9.1, 9.6, 10.8_
-  - ✅ 2026-08-24 完成：三仓库均于 `feat/controlled-data-query-mvp`；DSH ~92 文件按「基建/配置生成物/能力包/装配/note/规范工具」分类保留，fixture 陈旧 `authorized_query` 移除，`dic-be`/`dic-fe` 已 gitignore（独立仓库不进提交）；凭据/断言/SQL/env 扫描干净；基线 865+89 测试通过（未删测试恢复绿色）。
+  - ⏳ 2026-08-24 评审要求重新打开：先前标记完成不充分，证据按评审补齐中（见下）。未重新确认前不得继续任务 2–7。
+
+### 任务 1 证据记录（评审后补充，2026-08-24）
+
+**① 分支与 SHA**
+- 三仓库均于 `feat/controlled-data-query-mvp`。
+- DSH：head `7693fde41a`，功能基线 `3e435bdb4b`（Merge upstream/master），8 笔提交，`git diff --name-status 3e435bdb4b...7693fde41a` = **164 文件**（+7685/−100）。
+- dic-be：head `fd723ebb2430437e42a5dfdd6c2a6404ebb69718`，未提交 25 路径。
+- dic-fe：head `7651cb4a11aa7a2f308ca832308d63b8fa01e650`，工作树干净。
+
+**② DSH 未提交内容**
+- 全部已提交（8 笔）；`dic-be/`、`dic-fe/` 为独立仓库已 gitignore（`git check-ignore dic-be` 通过）。
+
+**③ dic-be 25 路径逐文件分类（保留=基座待后续任务完善；修改=与 Spec 冲突必须改）**
+| 路径 | 分类 | 对应 Spec Task | 依据 |
+|---|---|---|---|
+| `app/core/config.py` | **修改** | T5.1/T9.3 | 单 `dsh_assertion_secret`，Spec 要求 key ring + 轮换；弱默认须启动失败 |
+| `app/core/init_db.py` | 修改 | T3.1 | 需建 `dq_*` ORM 表 |
+| `app/data_query/infrastructure/assertion.py` | **修改** | T5.2/T5.3 | 断言必填含 `dataRoles`（Spec 要求角色由 dic-be 按 `sub` 权威解析，不得信任断言里的 role）；缺 `kid`、`conversationId`、`turnId`；单 secret |
+| `tests/test_data_query_assertion.py` | **修改** | T5.4 | 随 assertion.py 重写 |
+| `app/data_query/domain/models.py`、`policy.py` | 保留 | T2.1/T2.2 | 领域模型/授权策略基座 |
+| `app/data_query/domain/error_code.py` | 保留 | T8.1 | 稳定错误码 |
+| `app/data_query/infrastructure/broker.py`、`repo.py` | 保留 | T6/T3.3 | Query Broker/仓储事务基座 |
+| `app/data_query/application/service.py`、`audit.py` | 保留 | T2/T4/T7 | 会话轮次服务/审计（含脱敏键清单） |
+| `app/data_query/interfaces/router.py`、`schemas.py` | 保留 | T4.2/T4.1,T6.1 | 会话 API/严格 schema |
+| `app/data_query/init_db.py`、`__init__.py`×3 | 保留 | T3.1 | 初始化 |
+| 其余 `tests/test_data_query_*.py`（6 个） | 保留 | T2.3/T6.1/T6.4/T7 | 定向测试 |
+
+**④ 基线命令与结果（实际运行）**
+- DSH：`node_modules/.bin/vitest run <6 个改动包>` → **865 passed / 45 文件**；`vitest run packages/identity/*`（4 包）→ **97 passed**；`tsc -b <4 包 tsconfig>` → exit 0。
+- dic-be：`python -m pytest -q` → **290 passed / 214 failed / 6 warnings**（失败全部在既有无关测试 version/ops_logs/dev_mode 等，未改 dic-be 代码）；`pytest tests/test_data_query_*.py` → **33 passed / 0 failed**。
+- dic-fe：`pnpm install` 后 `node_modules/.bin/vitest run` → **261 passed / 33 文件**。
+
+**⑤ 敏感信息扫描（命令与结果）**
+- 命令：`grep -rniE "access[_-]?key|secret[_-]?key|password[=:]|LTAI|AKID|dsak|Bearer [a-zA-Z0-9]{20,}" apps/cli/config packages/identity .kiro dic-be/app/data_query dic-be/tests/test_data_query*.py ...（排除 env 引用/占位/脱敏键名清单）`
+- 结果：仅命中 `audit.py` 的脱敏键名清单（`"accesskey"`/`"access_key"` 等，非凭据）。`.env.example` 为空值示例。**无硬编码凭据/真实断言/生产 SQL/误写 env**。
+
+**⑥ 待办（评审遗留）**
+- [ ] 上述证据核验后再勾选任务 1（README 陈旧引用已随本记录提交）。
 
 - [ ] 2. 完成 dic-be 语义治理领域模型
   - [ ] 2.1 定义数据集、指标、维度和授权策略领域值对象
