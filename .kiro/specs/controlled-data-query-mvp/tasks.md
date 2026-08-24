@@ -43,7 +43,7 @@
 
 **⑤ 敏感信息扫描（命令与结果）**
 - 命令：`grep -rniE "access[_-]?key|secret[_-]?key|password[=:][^ ']|LTAI|AKID|dsak|Bearer [a-zA-Z0-9]{20,}" apps/cli/config packages/identity .kiro dic-be/app/data_query dic-be/tests/test_data_query*.py --include="*.yml" --include="*.yaml" --include="*.mjs" --include="*.md" --include="*.ts" --include="*.py" | grep -viE "process\.env|os\.getenv|settings\.|config\.|getenv|\$\{|placeholder|replace|test-|fixture|_password\b|audit.*redact|键名包含"`
-- 结果（精确重放）：第一阶段无过滤产出 **5 条候选**——3 条为规范/命令文本自引用（文本本身含关键词），2 条为 `dic-be/app/data_query/application/audit.py` 的脱敏键名清单条目（`access*key`/`access_key` 类，非凭据）；人工核验 5 条均非凭据/真实 JWT/生产 SQL。完整过滤管道后无凭据候选。`.env.example` 为空值示例。
+- 结果（精确重放）：第一阶段无过滤产出 **5 条候选**——3 条为规范/命令文本自引用（命令文本本身含模式串），2 条为 `dic-be/app/data_query/application/audit.py` 的脱敏键名清单条目（非凭据）；人工核验 5 条均非凭据/真实 JWT/生产 SQL。完整过滤管道后无凭据候选。`.env.example` 为空值示例。
 
 **⑥ 待办（评审遗留）**
 - [ ] 上述证据核验后再勾选任务 1（README 陈旧引用已随本记录提交）。
