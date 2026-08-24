@@ -9,6 +9,9 @@ MCP client bridge plugin: connects to external [Model Context Protocol](https://
 One plugin instance per MCP server in `cordis.yml`:
 
 ```yaml
+- id: mcp-clients
+  name: '@deepseek-ai/dsh-mcp-client/mcp-clients'
+
 - id: mcp-github
   name: '@deepseek-ai/dsh-mcp-client'
   config:
@@ -31,6 +34,30 @@ One plugin instance per MCP server in `cordis.yml`:
 
 The model sees `mcp__github__create_issue`, `mcp__web__search`, … — the same server-qualified shape Claude Code and Codex use. HMR hot-swaps: editing the entry triggers disconnect + reconnect without process restart; an unchanged `serverName` reproduces identical tool names.
 
+Set `exposeTools: false` when an MCP server is used only by an internal consumer such as request authentication. The connection remains callable through `ctx.mcpClients`, but tool discovery is skipped and nothing from that server enters the model tool registry.
+
+## Direct MCP calls
+
+Mount `@deepseek-ai/dsh-mcp-client/mcp-clients` before every bridge instance. With `exposeTools: false`, non-model consumers can call the current connected client without registering through `ctx.tools` or exposing a tool to the model:
+
+```ts
+import type { McpClientRegistry } from '@deepseek-ai/dsh-mcp-client/mcp-clients'
+
+declare const ctx: { mcpClients: McpClientRegistry }
+declare const signal: AbortSignal
+
+async function callIssueTool() {
+  return ctx.mcpClients.call({
+    serverName: 'github',
+    toolName: 'create_issue',
+    arguments: { title: 'Bug report' },
+    signal,
+  })
+}
+```
+
+`call()` forwards the raw MCP tool name, arguments, cancellation signal, and that server's configured `toolCallTimeoutMs`; it returns the unvalidated MCP response record for the consumer to validate. It rejects while the server is disconnected, after retry exhaustion, or after the bridge plugin disposes. Model tool discovery and execution remain unchanged.
+
 ## Config
 
 | Field | Transport | Required | Description |
@@ -44,6 +71,7 @@ The model sees `mcp__github__create_issue`, `mcp__web__search`, … — the same
 | `url` | http | yes | MCP server URL |
 | `headers` | http | no | Extra headers (e.g. auth tokens) |
 | `toolCallTimeoutMs` | both | no | Timeout per `callTool` invocation (default 60000) |
+| `exposeTools` | both | no | Publish discovered tools to `ctx.tools` and the model (default `true`); set `false` for direct-only consumers |
 | `failOnStartupError` | both | no | Reject plugin activation when initial connection or tool synchronization fails (default `false`) |
 | `reconnect.enabled` | both | no | Reconnect automatically after a lost connection (default `true`) |
 | `reconnect.initialDelayMs` | both | no | First reconnect delay in ms; doubles per consecutive failed attempt (default 500) |
@@ -75,6 +103,7 @@ Every MCP tool has two names: the raw MCP name (sent on the wire in `tools/call`
 | Service | Usage |
 |---|---|
 | `ctx.tools` | Register/unregister MCP tools |
+| `ctx.mcpClients` | Direct raw `tools/call` dispatch to a currently connected configured server |
 | `ctx.attachments` | Optionally validate and persist image result batches before model projection |
 | `ctx.llm` | Optionally prove the exact calling route explicitly supports image input |
 

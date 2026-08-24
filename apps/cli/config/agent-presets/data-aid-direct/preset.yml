@@ -1,0 +1,5 @@
+name: 本地数据问答
+# This preset is intentionally local-only because its two data MCP routes use
+# service credentials without per-user table, column, or row authorization.
+description: 仅本机使用的 MaxCompute 与 Hologres 只读数据问答 Agent。
+order: 5

@@ -1,0 +1,45 @@
+# Local-only direct Data Aid overlay for existing WSL MCP servers.
+# Both routes use service identities without end-user data authorization. Start
+# DSH on 127.0.0.1 only; this overlay must never be shared or publicly exposed.
+
+- id: agent-presets
+  config:
+    default: data-aid-direct
+
+- insert:
+    - id: mcp-clients
+      name: '@deepseek-ai/dsh-mcp-client/mcp-clients'
+
+    # Each bridge remains host-only. The agent preset reaches only its specific
+    # read-query wrapper, never a raw MCP tool.
+    - id: mcp-maxcompute-direct
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: maxcompute-direct
+        transport: streamable-http
+        url: http://127.0.0.1:8765/mcp/
+        headers: {}
+        toolCallTimeoutMs: 60000
+        exposeTools: false
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 5000
+          maxAttempts: 10
+
+    - id: mcp-hologres-direct
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: hologres-direct
+        transport: streamable-http
+        url: http://127.0.0.1:8766/mcp
+        headers: {}
+        toolCallTimeoutMs: 60000
+        exposeTools: false
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 5000
+          maxAttempts: 10

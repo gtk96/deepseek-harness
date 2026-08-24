@@ -1,0 +1,81 @@
+{
+  "name": "@deepseek-ai/dsh-authenticated-principal-data-aid",
+  "description": "Data-aid gateway Principal provider and authorized query capability",
+  "version": "0.1.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/identity/authenticated-principal-data-aid"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./mse-gateway": {
+      "types": "./lib/types/mse-gateway.d.ts",
+      "default": "./lib/mse-gateway.js"
+    },
+    "./loopback-test": {
+      "types": "./lib/types/loopback-test.d.ts",
+      "default": "./lib/loopback-test.js"
+    },
+    "./turn-principal": {
+      "types": "./lib/types/turn-principal.d.ts",
+      "default": "./lib/turn-principal.js"
+    },
+    "./data-query-tool": {
+      "types": "./lib/types/data-query-tool.d.ts",
+      "default": "./lib/data-query-tool.js"
+    },
+    "./direct-query-tools": {
+      "types": "./lib/types/direct-query-tools.d.ts",
+      "default": "./lib/direct-query-tools.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "lib/loopback-test.js",
+    "lib/mse-gateway.js",
+    "lib/turn-principal.js",
+    "lib/data-query-tool.js",
+    "lib/direct-query-tools.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-authenticated-principal": "workspace:^",
+    "@deepseek-ai/dsh-client-connection": "workspace:^",
+    "@deepseek-ai/dsh-data-query": "workspace:^",
+    "@deepseek-ai/dsh-invariants": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-mcp-client": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-authenticated-principal": "workspace:^",
+    "@deepseek-ai/dsh-client-connection": "workspace:^",
+    "@deepseek-ai/dsh-data-query": "workspace:^",
+    "@deepseek-ai/dsh-invariants": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-mcp-client": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

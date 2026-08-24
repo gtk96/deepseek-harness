@@ -20,9 +20,11 @@ import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/typ
 import type { Context } from '@deepseek-ai/cordis'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { createTransport } from './transport.ts'
-import { syncTools } from './tools.ts'
+import { callToolUncached, syncTools } from './tools.ts'
 import type { ToolBridgeOptions, ToolDisposers } from './tools.ts'
 import type { Config } from './index.ts'
+// Side-effect type import: declaration-merges `ctx.mcpClients` onto Context.
+import type {} from './mcp-clients.ts'
 
 /** Automatic reconnect policy for one MCP server connection. */
 export interface ReconnectConfig {
@@ -89,6 +91,11 @@ export function resolveReconnectPolicy(config: ReconnectConfig | undefined, path
   return Object.freeze({ enabled, initialDelayMs, maxDelayMs, maxAttempts })
 }
 
+/** Resolve whether this connection publishes its discovered tools to the model registry. */
+function resolveToolExposure(exposeTools: boolean | undefined): boolean {
+  return exposeTools ?? true
+}
+
 /** Result from the initial connection attempt, for startup-await semantics. */
 export interface ConnectionOutcome {
   /** If the initial connection or tool sync failed, the error; otherwise absent. */
@@ -115,13 +122,14 @@ export interface ConnectionHandle {
  * Start the supervised connection for one MCP server and keep it alive per
  * the reconnect policy.
  *
- * @param ctx - Cordis context providing the `tools` registry and logger.
+ * @param ctx - Cordis context providing the `tools`, `mcpClients`, and logger services.
  * @param config - Resolved plugin config selecting the transport and server identity.
  * @param policy - Resolved reconnect policy from {@link resolveReconnectPolicy}.
  * @returns Handle with a `ready` promise for startup-await and a `dispose` for teardown.
  */
 export function startConnection(ctx: Context, config: Config, policy: ResolvedReconnectPolicy): ConnectionHandle {
   const label = `mcp-client(${config.serverName})`
+  const exposeTools = resolveToolExposure(config.exposeTools)
   const opts: ToolBridgeOptions = {
     registrationFailure: 'contain',
     serverName: config.serverName,
@@ -141,6 +149,8 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
   let clientClosed: Promise<void> | undefined
   /** Live tool registrations owned by this server; only {@link enqueueSync} and dispose swap it. */
   let disposers: ToolDisposers = new Map()
+  /** Registry publication paired to one connected client generation. */
+  let callerRegistration: { generation: Client; dispose: () => void } | undefined
   let reconnectTimer: NodeJS.Timeout | undefined
   /** Consecutive failed connection attempts within the current outage. */
   let failedAttempts = 0
@@ -169,9 +179,30 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     return run
   }
 
+  /** Remove only the caller published by this exact generation. */
+  function unregisterCaller(generation: Client): void {
+    if (callerRegistration?.generation !== generation) return
+    callerRegistration.dispose()
+    callerRegistration = undefined
+  }
+
+  /** Publish one raw caller only after this generation has connected. */
+  function registerCaller(generation: Client): void {
+    callerRegistration = {
+      generation,
+      dispose: ctx.mcpClients.register(config.serverName, ({ toolName, arguments: args, signal }) => {
+        if (!isCurrent(generation)) {
+          return Promise.reject(new Error(`${label}: raw caller is unavailable`))
+        }
+        return callToolUncached(generation, toolName, args, signal, config.toolCallTimeoutMs)
+      }),
+    }
+  }
+
   /** One disconnect decision per generation: the isCurrent guard makes racing close/error signals idempotent. */
   function generationDown(generation: Client): void {
     if (!isCurrent(generation)) return
+    unregisterCaller(generation)
     client = undefined
     clientClosed = undefined
     scheduleReconnect()
@@ -252,22 +283,22 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
       // established generation can transition down directly from this signal.
       if (attemptSettled) generationDown(generation)
     }
-    // Registered before connect so a list change during the initial sync is
-    // queued behind it rather than dropped.
-    generation.setNotificationHandler(
-      ToolListChangedNotificationSchema,
-      async () => {
-        if (!isCurrent(generation)) return
-        ctx.logger.info(`${label}: tool list changed, re-syncing`)
-        try {
-          await enqueueSync(generation)
-        } catch (error) {
-          // Fetch-phase failure: the previous generation is still registered
-          // and `disposers` still owns it — keep serving the last good list.
-          if (!disposed) ctx.logger.error(`${label}: tool re-sync failed: ${String(error)}`)
-        }
-      },
-    )
+    if (exposeTools) {
+      generation.setNotificationHandler(
+        ToolListChangedNotificationSchema,
+        async () => {
+          if (!isCurrent(generation)) return
+          ctx.logger.info(`${label}: tool list changed, re-syncing`)
+          try {
+            await enqueueSync(generation)
+          } catch (error) {
+            // Fetch-phase failure: the previous generation is still registered
+            // and `disposers` still owns it — keep serving the last good list.
+            if (!disposed) ctx.logger.error(`${label}: tool re-sync failed: ${String(error)}`)
+          }
+        },
+      )
+    }
     try {
       await generation.connect(createTransport(config))
       if (hasClosed()) {
@@ -275,8 +306,10 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
         generationDown(generation)
         return
       }
-      await enqueueSync(generation, startup ? startupOpts : opts)
+      registerCaller(generation)
+      if (exposeTools) await enqueueSync(generation, startup ? startupOpts : opts)
     } catch (error) {
+      unregisterCaller(generation)
       if (firstAttemptError === undefined) firstAttemptError = error
       // Disposal clears current ownership before it closes the generation, so
       // only a live supervisor reports an attempt failure.
@@ -301,7 +334,11 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     }
     if (!isCurrent(generation)) return
     connectedAt = Date.now()
-    if (failedAttempts > 0) ctx.logger.info(`${label}: reconnected and re-synced tools (attempt ${failedAttempts}/${policy.maxAttempts})`)
+    if (failedAttempts > 0) {
+      ctx.logger.info(exposeTools
+        ? `${label}: reconnected and re-synced tools (attempt ${failedAttempts}/${policy.maxAttempts})`
+        : `${label}: reconnected (attempt ${failedAttempts}/${policy.maxAttempts})`)
+    }
   }
 
   /** The in-flight (or last settled) connection attempt; dispose awaits it for quiescence. */
@@ -332,6 +369,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
       }
       const current = client
       const currentClosed = clientClosed
+      if (current !== undefined) unregisterCaller(current)
       client = undefined
       clientClosed = undefined
       if (current !== undefined) {

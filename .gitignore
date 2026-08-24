@@ -39,3 +39,6 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
+# 数智中心仓库是独立 git 仓库，仅在本工作区联合开发，不进入 DSH 提交
+/dic-be/
+/dic-fe/

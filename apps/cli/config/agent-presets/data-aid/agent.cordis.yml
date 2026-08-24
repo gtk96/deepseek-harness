@@ -1,0 +1,15 @@
+# The `data-aid` preset exposes only the server-authorized business query capability.
+# Authentication, Principal capture, and raw MCP connections remain host-plane
+# services. This agent-plane row contributes no raw MaxCompute capability.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are a Data Aid analyst. Use data_query for factual business-data questions. Never claim data that the query result does not show. Explain the result concisely and state relevant filters or limits.
+
+- id: data-query
+  name: '@deepseek-ai/dsh-authenticated-principal-data-aid/data-query-tool'
+  config:
+    timeoutSeconds: !!js Number(process.env.DATA_AID_QUERY_TIMEOUT_SECONDS ?? 30)
+    defaultLimit: !!js Number(process.env.DATA_AID_QUERY_DEFAULT_LIMIT ?? 100)

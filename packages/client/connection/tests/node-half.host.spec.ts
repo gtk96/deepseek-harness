@@ -230,7 +230,10 @@ describe('connection node half', () => {
 
     const connection = ctx.get('connection') as HostConnectionHandle
     const calls: unknown[] = []
-    const remove = connection.rpc.handle('/rpc', async (endpoint, payload) => {
+    let requestMetadata: Request | undefined
+    const remove = connection.rpc.handle('/rpc', async (endpoint, payload, signal, transport) => {
+      void signal
+      requestMetadata = transport?.request
       calls.push({ endpoint, payload })
       return { ok: true, value: { accepted: true } }
     }, { authority: 'trusted-host' })
@@ -255,6 +258,9 @@ describe('connection node half', () => {
       endpoint: 'goals/create',
       payload: { args: { agentId: 'agent-1' } },
     }])
+    expect(requestMetadata).toBeInstanceOf(Request)
+    expect(requestMetadata?.url).toBe('http://dsh.internal/rpc/goals/create')
+    expect(requestMetadata?.headers.get('host')).toBe('127.0.0.1:3080')
 
     expect(() => connection.rpc.handle('/rpc', async () => ({ ok: true, value: null }), {
       authority: 'trusted-host',

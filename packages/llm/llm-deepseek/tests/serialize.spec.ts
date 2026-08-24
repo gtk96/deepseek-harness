@@ -256,18 +256,20 @@ describe('serializeRequest', () => {
     expect(wire.stop).toEqual(['END'])
   })
 
-  it('maps tools to the wire function shape', () => {
+  it('materializes missing required lists in object tool schemas without mutating them', () => {
+    const parameters = { type: 'object', properties: {} }
     const wire = serializeRequest(request({
       messages: history,
       tools: [
-        { name: 'a', description: 'A', parameters: { type: 'object', properties: {} } },
-        { name: 'b', description: 'B', parameters: { type: 'object', properties: { x: { type: 'string' } } } },
+        { name: 'a', description: 'A', parameters },
+        { name: 'b', description: 'B', parameters: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] } },
       ],
     }))
     expect(wire.tools).toEqual([
-      { type: 'function', function: { name: 'a', description: 'A', parameters: { type: 'object', properties: {} } } },
-      { type: 'function', function: { name: 'b', description: 'B', parameters: { type: 'object', properties: { x: { type: 'string' } } } } },
+      { type: 'function', function: { name: 'a', description: 'A', parameters: { type: 'object', properties: {}, required: [] } } },
+      { type: 'function', function: { name: 'b', description: 'B', parameters: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] } } },
     ])
+    expect(parameters).toEqual({ type: 'object', properties: {} })
   })
 
   it('omits an empty tools array', () => {

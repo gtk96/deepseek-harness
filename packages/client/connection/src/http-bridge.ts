@@ -11,6 +11,18 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
  * each body in memory, so this cap is also the per-request resident bound. */
 export const DEFAULT_MAX_REQUEST_BODY_BYTES = 300 * 1024 * 1024
 
+const peerAddresses = new WeakMap<Request, string>()
+
+/**
+ * Return the Node TCP peer address attached by {@link bridge} to one Fetch request.
+ * The address is transport metadata and is never derived from a client-controlled header.
+ * @param request - Fetch request previously created by this module's Node bridge.
+ * @returns the direct TCP peer address, or undefined for synthetic Fetch requests.
+ */
+export function transportPeerAddressOf(request: Request): string | undefined {
+  return peerAddresses.get(request)
+}
+
 /** Transport-independent request handler consumed by the Host HTTP bridge. */
 export interface FetchHandler {
   /**
@@ -72,6 +84,8 @@ export async function bridge(
     ...chunks.length > 0 ? { body: Buffer.concat(chunks) } : {},
     signal: abort.signal,
   })
+  const peerAddress = req.socket?.remoteAddress
+  if (peerAddress !== undefined) peerAddresses.set(request, peerAddress)
   const response = await apiHandler.fetch(request)
   res.writeHead(response.status, Object.fromEntries(response.headers.entries()))
   if (response.body === null) {

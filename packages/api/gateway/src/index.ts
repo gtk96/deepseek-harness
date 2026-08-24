@@ -5,7 +5,11 @@
  */
 
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
-import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
+import type { ConnectionRpcHandler, ConnectionRpcRequest } from '@deepseek-ai/dsh-client-connection'
+import {
+  PrincipalAuthenticationError,
+  type AuthenticatedPrincipal,
+} from '@deepseek-ai/dsh-authenticated-principal'
 import {
   remoteMethods,
   TypertLookupFailure,
@@ -39,6 +43,7 @@ interface ResolvedBinding {
 type ConnectionRpcResult = Awaited<ReturnType<ConnectionRpcHandler>>
 type ConnectionRpcError = Extract<ConnectionRpcResult, { readonly ok: false }>['error']
 const NEVER_ABORTED_SIGNAL = new AbortController().signal
+const UNAUTHORIZED_RPC_MESSAGE = 'authentication failed'
 
 /** Dispatch failure produced outside the invoked business method. */
 export class TypertGatewayError extends Error {
@@ -105,7 +110,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
       connectionCtx.connection.rpc.intercept(
         '/api',
         endpoint => this.claimsEndpoint(endpoint),
-        (endpoint, payload, signal) => this.dispatchRpc(endpoint, payload, signal),
+        (endpoint, payload, signal, transport) => this.dispatchRpc(endpoint, payload, signal, transport),
         { authority: 'trusted-host' },
       )
     })
@@ -143,6 +148,25 @@ export class TypertGatewayService extends Service implements TypertGateway {
    * @throws {@link TypertGatewayError} for dispatch, provider, or boundary failures; lookup-policy and business errors retain identity.
    */
   async invoke(request: InvokeRemoteRequest): Promise<unknown> {
+    const endpoint = endpointOf(request.namespace, request.method)
+    const principalService = this.ctx.get('authenticatedPrincipal')
+    if (principalService !== undefined) {
+      if (request.principal === undefined) {
+        return principalService.withoutPrincipal(() => this.invokeUnscoped(request))
+      }
+      return principalService.withPrincipal(request.principal, () => this.invokeUnscoped(request))
+    }
+    if (request.principal !== undefined) {
+      throw new TypertGatewayError(
+        'authentication-unavailable',
+        endpoint,
+        'authenticated Principal service is unavailable',
+      )
+    }
+    return this.invokeUnscoped(request)
+  }
+
+  private async invokeUnscoped(request: InvokeRemoteRequest): Promise<unknown> {
     const endpoint = endpointOf(request.namespace, request.method)
     const descriptor = this.resolveDescriptor(request.namespace, request.method, endpoint)
     assertExactArguments(request.args, descriptor, endpoint)
@@ -187,11 +211,25 @@ export class TypertGatewayService extends Service implements TypertGateway {
     endpoint: string,
     payload: unknown,
     signal: AbortSignal,
+    transport?: ConnectionRpcRequest,
   ): Promise<ConnectionRpcResult> {
-    return this.invokeRpc(endpoint, payload, signal)
+    try {
+      const principalService = this.ctx.get('authenticatedPrincipal')
+      if (principalService === undefined) return await this.invokeRpc(endpoint, payload, signal)
+      if (transport === undefined) throw new PrincipalAuthenticationError()
+      const principal = await principalService.authenticate(transport.request, signal)
+      return await this.invokeRpc(endpoint, payload, signal, principal)
+    } catch (error) {
+      return rpcFailure(error)
+    }
   }
 
-  private async invokeRpc(endpoint: string, payload: unknown, signal: AbortSignal): Promise<ConnectionRpcResult> {
+  private async invokeRpc(
+    endpoint: string,
+    payload: unknown,
+    signal: AbortSignal,
+    principal?: AuthenticatedPrincipal,
+  ): Promise<ConnectionRpcResult> {
     try {
       const segments = endpoint.split('/')
       if (segments.length !== 2 || segments[0] === '' || segments[1] === '') {
@@ -211,6 +249,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
         method,
         args: payload.args,
         signal,
+        ...(principal === undefined ? {} : { principal }),
       })
       // A void or explicitly absent business result carries no `value` field;
       // JSON has no `undefined`, and the envelope's optional slot is the one
@@ -469,6 +508,12 @@ export class TypertGatewayService extends Service implements TypertGateway {
 }
 
 function rpcFailure(error: unknown): ConnectionRpcResult {
+  if (error instanceof PrincipalAuthenticationError) {
+    return {
+      ok: false,
+      error: { code: 'unauthorized', message: UNAUTHORIZED_RPC_MESSAGE, details: {} },
+    }
+  }
   if (error instanceof RemoteInvocationCancelled) {
     return {
       ok: false,

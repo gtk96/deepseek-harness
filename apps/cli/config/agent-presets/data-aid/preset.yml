@@ -1,0 +1,6 @@
+name: 数据问答
+# `data_query` is the only model-facing capability. It accepts semantic catalog
+# codes and dispatches through the configured data-query provider, which signs a
+# short-lived Principal assertion for the server-side authorization broker.
+description: 仅提供经用户权限约束的语义数据查询能力的业务问答 Agent。
+order: 4

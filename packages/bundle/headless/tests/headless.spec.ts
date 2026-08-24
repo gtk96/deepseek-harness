@@ -217,12 +217,13 @@ describe('headless runner', () => {
     await ctx.fiber.dispose()
   })
 
-  it('abandons a run when the tree is disposed during Loader settlement', async () => {
+  it('fails loud when the tree is disposed during Loader settlement', async () => {
     const ctx = new Context()
-    let exited = false
+    let exitCode: number | undefined
+    let err = ''
     internals.stdout = { write: () => true }
-    internals.stderr = { write: () => true }
-    ctx.provide('appExit', () => { exited = true })
+    internals.stderr = { write: (chunk: string) => { err += chunk; return true } }
+    ctx.provide('appExit', (code: number) => { exitCode = code })
     const services = ctx.plugin((child: Context) => {
       child.provide('agentDefaultModel', { currentSelection: () => ({ provider: 'p', model: 'm' }) } as never)
       child.provide('sessions', {} as never)
@@ -236,7 +237,8 @@ describe('headless runner', () => {
     await services.dispose()
     release!()
     await new Promise(resolve => setTimeout(resolve, 10))
-    expect(exited).toBe(false)
+    expect(exitCode).toBe(1)
+    expect(err).toBe('dsh: headless-runner: required services unavailable after Loader settlement: agents, agentDefaultModel, sessions\n')
     await ctx.fiber.dispose()
   })
 

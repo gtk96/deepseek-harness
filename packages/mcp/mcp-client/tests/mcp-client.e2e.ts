@@ -24,7 +24,8 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { CallId, LlmAdapter, LlmRuntime } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
-import { apply } from '@deepseek-ai/dsh-mcp-client/src/index.ts'
+import { apply, inject } from '@deepseek-ai/dsh-mcp-client/src/index.ts'
+import McpClientRegistry from '@deepseek-ai/dsh-mcp-client/src/mcp-clients.ts'
 import { publicToolName } from '@deepseek-ai/dsh-mcp-client/src/tools.ts'
 import type { Config } from '@deepseek-ai/dsh-mcp-client'
 
@@ -42,6 +43,7 @@ async function mountRegistry(): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(McpClientRegistry)
   return ctx
 }
 
@@ -144,6 +146,12 @@ describe('fixture server — controlled scenarios', () => {
     })
     expect(result.isError).toBe(false)
     expect(result.content[0]).toEqual({ type: 'text', text: 'reset done' })
+  })
+
+  it('calls a raw tool directly without registering it through ctx.tools', async () => {
+    await expect(ctx.mcpClients.call({
+      serverName: 'fixture', toolName: 'add', arguments: { a: 2, b: 3 }, signal: testToolSignal,
+    })).resolves.toMatchObject({ content: [{ type: 'text', text: '5' }] })
   })
 
   it('executes add(2, 3) → "5"', async () => {
@@ -293,7 +301,7 @@ describe('fixture server — crash recovery', () => {
   it('plugin unload during an outage stops reconnection and unregisters tools', async () => {
     const ctx = await mountRegistry()
     const fiber = ctx.plugin(
-      { name: 'mcp-client', inject: ['tools'], apply },
+      { name: 'mcp-client', inject, apply },
       crashConfig('ephemeral', { initialDelayMs: 8_000, maxDelayMs: 8_000, maxAttempts: 5 }),
     )
     // Cordis awaits async apply() as startup work; wait for it.

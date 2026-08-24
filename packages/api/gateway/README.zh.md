@@ -6,6 +6,8 @@
 
 ## Host 服务：`TypertGatewayService`（ctx key：`typertGateway`）
 
+Connection 的 Host 入口可选地消费 `ctx.authenticatedPrincipal`。组合该 Service 后，共享 `/api` interceptor 会在解析业务调用前认证原始 Fetch `Request`，在描述符解析和业务执行的整个生命周期内建立所得 Principal，并将 Provider 失败映射为稳定的 RPC `unauthorized` 错误码。直接调用方需要 Principal 时显式传入；没有传入 Principal 的直接调用会清除 ambient Principal，而不会继承它。Principal 是 Gateway 内部数据，绝不会进入 Typert wire `args`、Session 状态、Agent ownership 或模型请求。
+
 每次调用时，`ctx.typertGateway.invoke()` 都会解析当前的描述符和 Cordis 服务，校验具名参数是否完全匹配，解析已注册的对象或 Context 身份标识，调用公开的业务方法，并校验其结果。业务服务继承 [`dsh-typert-protocol`](../../typert/protocol/README.zh.md) 的 `TypertRemoteService`，并用 `@Remote` 或 `@RemoteScope` 标记方法；已有其他基类时仍可改用 `bindTypertRemote()`。
 
 严格模式从 `ctx.typert.local` 读取生成的调用描述符。查找参数使用 `ctx.typert.lookups` 中当前有效的 resolver：业务包注册稳定声明与默认策略，Host 组合可用 effect-scoped `configure()` 覆盖解析行为；`@RemoteScope` 则通过已注册的 Host Context 提供方解析其接收者。SRC 模式是开发阶段的回退路径，适用于从未具备严格定义的端点；它解析简单参数名，并且只允许非查找参数使用可安全表示为 JSON 的值。已观测到的严格定义一旦撤回，系统会直接报错，而不会降低校验强度。
@@ -34,7 +36,7 @@ Connection 可用时，Host 入口会在 Connection 共享的 `/api` FetchHandle
 
 ## 已知限制与延期工作
 
-- Connection 适配器将普通分发故障和业务异常映射为 RPC 的 `internal` 代码，且不附带详细信息；`TypertLookupFailure` 携带的 lookup 策略错误会原样返回。结构化的 `TypertGatewayError` 类别仅供同进程调用方使用。
+- Connection 适配器将普通分发故障和业务异常映射为 RPC 的 `internal` 代码，且不附带详细信息；Principal 认证失败使用带通用消息和空 details 的 `unauthorized`；`TypertLookupFailure` 携带的 lookup 策略错误会原样返回。结构化的 `TypertGatewayError` 类别仅供同进程调用方使用。
 - SRC 模式仅支持名称唯一的标识符参数，不支持解构、默认值或剩余参数。它只校验值能否安全表示为 JSON，不校验生成的业务类型，也绝不会推断可选字段。
 - Client 侧只能挂载严格模式生成的贡献项。SRC 标记不具备 Client 编解码器或类型投影。
 - 该包只分发一元方法。增量会话数据通过同一个 Connection 上独立的具名流协议传输。
