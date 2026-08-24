@@ -1,5 +1,7 @@
 # data-aid MSE DingTalk deployment
 
+English | [中文](README.zh.md)
+
 This is the production DSH Web overlay for an MSE or enterprise SSO proxy that owns the DingTalk browser login. It does not add a local login page: the proxy redirects an unauthenticated browser to DingTalk, validates the callback, removes any browser-supplied `gk-service-user` and `gk-service-app` headers, and injects those headers only for the authenticated upstream request.
 
 DSH rejects the request unless its direct TCP peer equals `DSH_MSE_PROXY_IP`. Set that value to the address DSH actually sees for the MSE/SSO hop, such as the adjacent proxy, ingress pod, or load-balancer address. Do not use `X-Forwarded-For`, a browser address, a hostname, or the public MSE address unless it is also the direct peer. The provider then parses the injected DingTalk visitor id and calls the non-model MaxCompute authority MCP bridge before every Remote invocation.

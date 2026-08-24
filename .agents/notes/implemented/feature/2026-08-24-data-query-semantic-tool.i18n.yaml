@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-24-data-query-semantic-tool.md
 2026-08-24-data-query-semantic-tool.md: f314f61012b501d1d720aeee8c8ae403d2969e91
-2026-08-24-data-query-semantic-tool.zh.md: 4c9dcac2ea4ba1fac6305141c5b7cb49b94f66ee
+2026-08-24-data-query-semantic-tool.zh.md: 8f1cac5d3166e5cbc21716a798ad1a429adc4488

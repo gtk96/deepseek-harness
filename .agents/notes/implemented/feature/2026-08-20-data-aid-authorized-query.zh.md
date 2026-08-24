@@ -32,4 +32,4 @@ Data Aid 模型可以从 `data_query` 结果形成业务回答，原始 MCP 工�
 
 本地 data-aid fixture 现在提供确定性的 authorized-query endpoint，并验证收到的 envelope。定向测试覆盖只在 turn 内可用的 Principal、冲突拒绝、turn 停止时移除、envelope 派生以及对不完整或超限 broker 结果的拒绝。生产发布仍取决于部署真实 broker，使其执行所述服务端授权语义；仅靠 DSH 配置不能提供这些规则。
 
-上述模型可见工具面已由 [语义化 data_query 工具](2026-08-24-data-query-semantic-tool.md) 取代——它接受目录编码而非 SQL，并经 `ctx.dataQuery` 派发；本 note 描述的认证主体与轮次绑定接缝仍然有效。
+上述模型可见工具面已由 [语义化 data_query 工具](2026-08-24-data-query-semantic-tool.zh.md) 取代——它接受目录编码而非 SQL，并经 `ctx.dataQuery` 派发；本 note 描述的认证主体与轮次绑定接缝仍然有效。

@@ -1,5 +1,7 @@
 # Local WSL data question-answering test
 
+English | [中文](README.zh.md)
+
 This overlay reuses the MaxCompute and Hologres MCP services already listening in WSL at `127.0.0.1:8765` and `127.0.0.1:8766`. It does not start a Python query server and does not contain credentials. The model receives only `data_query_maxcompute` and `data_query_hologres`; both raw MCP bridges set `exposeTools: false`.
 
 This is a single-user functional test, not an authorization solution. The two wrappers use the MCP services' configured service identities and do not enforce end-user table, column, or row scope. Bind DSH to loopback only; do not place this overlay behind a LAN, reverse proxy, or public listener.

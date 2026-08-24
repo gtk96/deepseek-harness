@@ -1,5 +1,7 @@
 # Local data-aid Gateway smoke test
 
+English | [中文](README.zh.md)
+
 This overlay starts a DSH Web profile with a local stdio MCP fixture and the loopback-only `DataAidLoopbackTestAuthenticator`. It is a deterministic integration smoke test for the DSH authentication path; it is not a production DingTalk, MSE, reverse-proxy, or MaxCompute deployment. The fixture imports the repository's existing `dsh-mcp-client` MCP SDK and therefore runs only from this source checkout.
 
 Run from the DSH repository root after building the changed host packages:

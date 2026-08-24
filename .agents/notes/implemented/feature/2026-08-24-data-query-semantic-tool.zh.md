@@ -20,4 +20,4 @@ Status: implemented
 
 ## 后果
 
-data-aid 预设的模型工具目录精确等于 `['data_query']`，身份与作用域绝不来自模型参数。dic-be provider 及其断言成为生产执行路径；不验证断言的 broker 从模型侧无法触达。`DataQueryRequest` 新增了可选的语义过滤、时间范围与排序。旧 SQL-broker 工具面由 [授权查询 note](2026-08-20-data-aid-authorized-query.md) 记录的决策取代；该 note 描述的认证主体与轮次绑定接缝仍然有效。
+data-aid 预设的模型工具目录精确等于 `['data_query']`，身份与作用域绝不来自模型参数。dic-be provider 及其断言成为生产执行路径；不验证断言的 broker 从模型侧无法触达。`DataQueryRequest` 新增了可选的语义过滤、时间范围与排序。旧 SQL-broker 工具面由 [授权查询 note](2026-08-20-data-aid-authorized-query.zh.md) 记录的决策取代；该 note 描述的认证主体与轮次绑定接缝仍然有效。

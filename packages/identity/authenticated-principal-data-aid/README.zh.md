@@ -115,17 +115,17 @@ Provider 注册 `ctx.authenticatedPrincipal`。Typert Gateway 会在调用前认
 
 ### MSE 钉钉部署
 
-`@deepseek-ai/dsh-authenticated-principal-data-aid/mse-gateway` 为 MSE／企业 SSO 拓扑导出 `DataAidMseGatewayAuthenticator`。其 `trustedProxyAddresses` 选项是 DSH 实际观测到的非空且不重复的直连 IP literal 列表；IPv4-mapped IPv6 peer address 会归一化为 IPv4 literal。它会拒绝 hostname、proxy forwarding header、人工构造的 Fetch request 和缺失的 bridge metadata。生产 overlay 位于 [`apps/cli/config/data-aid-mse`](../../../apps/cli/config/data-aid-mse/README.md)。它要求明确的权限分区，并以 `exposeTools: false` 挂载原始 MaxCompute MCP bridge。
+`@deepseek-ai/dsh-authenticated-principal-data-aid/mse-gateway` 为 MSE／企业 SSO 拓扑导出 `DataAidMseGatewayAuthenticator`。其 `trustedProxyAddresses` 选项是 DSH 实际观测到的非空且不重复的直连 IP literal 列表；IPv4-mapped IPv6 peer address 会归一化为 IPv4 literal。它会拒绝 hostname、proxy forwarding header、人工构造的 Fetch request 和缺失的 bridge metadata。生产 overlay 位于 [`apps/cli/config/data-aid-mse`](../../../apps/cli/config/data-aid-mse/README.zh.md)。它要求明确的权限分区，并以 `exposeTools: false` 挂载原始 MaxCompute MCP bridge。
 
 ### Loopback smoke test
 
-`@deepseek-ai/dsh-authenticated-principal-data-aid/loopback-test` 导出用于隔离 DSH Web 冒烟测试的 `DataAidLoopbackTestAuthenticator`，配置位于 [`apps/cli/config/data-aid-test`](../../../apps/cli/config/data-aid-test/README.md)。DSH Web 绑定在本地 `127.0.0.1`；其 HTTP bridge 向认证 plugin 提供固定内部 origin `http://dsh.internal`，Provider 要求该 origin 和明确的测试密钥。它不能验证 MSE 或反向代理边界，绝不能作为生产 Provider 使用。
+`@deepseek-ai/dsh-authenticated-principal-data-aid/loopback-test` 导出用于隔离 DSH Web 冒烟测试的 `DataAidLoopbackTestAuthenticator`，配置位于 [`apps/cli/config/data-aid-test`](../../../apps/cli/config/data-aid-test/README.zh.md)。DSH Web 绑定在本地 `127.0.0.1`；其 HTTP bridge 向认证 plugin 提供固定内部 origin `http://dsh.internal`，Provider 要求该 origin 和明确的测试密钥。它不能验证 MSE 或反向代理边界，绝不能作为生产 Provider 使用。
 
 ## 本地直连问数测试
 
 `@deepseek-ai/dsh-authenticated-principal-data-aid/direct-query-tools` 为本地单用户测试注册 `data_query_maxcompute` 和 `data_query_hologres`。每个封装只接受一条无分号的 `SELECT` 或 `WITH` 语句，只调用已部署服务的读查询 MCP 操作，并限制到达模型的序列化结果。两个 MCP bridge 都必须设置 `exposeTools: false`。
 
-该能力有意不依赖 Principal 或授权 broker。它使用本地 MCP service identity，因此只能绑定 loopback 使用。WSL 组合位于 [`apps/cli/config/data-aid-direct-test`](../../../apps/cli/config/data-aid-direct-test/README.md)；不得用于共享、LAN、反向代理或公开访问。
+该能力有意不依赖 Principal 或授权 broker。它使用本地 MCP service identity，因此只能绑定 loopback 使用。WSL 组合位于 [`apps/cli/config/data-aid-direct-test`](../../../apps/cli/config/data-aid-direct-test/README.zh.md)；不得用于共享、LAN、反向代理或公开访问。
 
 ## 模型体验
 
