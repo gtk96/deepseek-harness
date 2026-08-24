@@ -63,7 +63,7 @@
     - 覆盖空策略、混合 allow/deny、重复字段、极限 limit 和非 MaxCompute 数据集。
     - _Requirements: 4.1–4.8, 5.5_
 
-  - ✅ 2026-08-24 实现：value objects（dimension_type/allowed_ops、有效期、filters/timeRange/orderBy 对齐 DSH 侧 DataQueryRequest）；authorize_semantic_query 默认拒绝 + deny 优先 + 过期/未来策略不生效 + 过滤/时间范围/排序授权 + 重复字段拒绝；48 个 data_query 测试通过（含 hypothesis 属性测试）。实现见 dic-be 分支 feat/task2-semantic-governance。待 kiro-cli 评审。
+  - ✅ 2026-08-24 完成交付：定义闭合治理值与不可变 `AuthorizedSemanticQuery`，实现默认拒绝、deny 优先、权威 staff 数据角色与行级范围、严格 filters/timeRange/orderBy 校验、非选择维度安全编译、稳定 `DQ_*` 响应及持久化映射 fail-closed；工作树与隔离 HEAD archive 均为 93 个聚焦测试通过，`compileall` 与 `git diff --check` 通过。实现提交：dic-be `aedc6a7`（分支 `feat/task2-semantic-governance`）。
 
 - [ ] 3. 完成 dic-be 治理与会话持久化
   - [ ] 3.1 定义并创建 `dq_*` ORM 表
