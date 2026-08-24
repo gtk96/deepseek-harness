@@ -1,0 +1,30 @@
+name: Sync upstream
+
+# 保持 sync/upstream 分支始终指向 deepseek-ai/deepseek-harness 的最新 master。
+# 功能分支应基于 sync/upstream（而非会过期的 master），避免 master 落后于源头。
+# 每日定时 + 手动触发（Actions 页 Run workflow）。
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # 每天 03:17 UTC（避开整点/半点）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-upstream-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sync/upstream
+          fetch-depth: 0
+      - name: Fetch upstream master
+        run: |
+          git remote add upstream https://github.com/deepseek-ai/deepseek-harness.git
+          git fetch upstream master
+      - name: Point sync/upstream at upstream/master and push
+        run: |
+          git reset --hard upstream/master
+          git push --force origin sync/upstream
