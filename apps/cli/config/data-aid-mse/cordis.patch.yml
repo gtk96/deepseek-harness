@@ -1,0 +1,74 @@
+# Production data-aid MSE overlay.
+# MSE or the enterprise SSO proxy performs DingTalk login, removes every
+# browser-provided gk-service-* header, and injects trusted visitor headers.
+# DSH accepts those headers only when the direct TCP peer matches DSH_MSE_PROXY_IP.
+
+# Keep the public MSE authority in Connection's DNS-rebinding fence. The value
+# is an authority only (for example, data-aid.example.internal), never a URL.
+- id: connection
+  config:
+    trustedHosts: !!js "[process.env.DSH_DATA_AID_PUBLIC_AUTHORITY, ...ctx.webRuntime.trustedHosts]"
+
+- id: agent-presets
+  config:
+    default: data-aid
+
+- insert:
+    - id: mcp-clients
+      name: '@deepseek-ai/dsh-mcp-client/mcp-clients'
+
+    # This raw MaxCompute bridge is an authentication dependency, not a model tool.
+    - id: mcp-maxcompute-authority
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: maxcompute-authority
+        transport: streamable-http
+        url: !!js process.env.DATA_AID_MAXCOMPUTE_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.DATA_AID_MAXCOMPUTE_MCP_TOKEN}`'
+        toolCallTimeoutMs: 30000
+        exposeTools: false
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 5000
+          maxAttempts: 10
+
+    # Semantic data-query capability: the tool dispatches through this runtime
+    # to the dic-be provider, which signs a short-lived Principal assertion.
+    - id: data-query-runtime
+      name: '@deepseek-ai/dsh-data-query'
+      config:
+        provider: dic-be
+
+    - id: data-query-dic-be
+      name: '@deepseek-ai/dsh-data-query-dic-be'
+      config:
+        baseURL: !!js process.env.DATA_AID_QUERY_BASE_URL
+        path: !!js process.env.DATA_AID_QUERY_PATH
+        issuer: !!js process.env.DATA_AID_QUERY_ISSUER
+        audience: !!js process.env.DATA_AID_QUERY_AUDIENCE
+        assertionSecret: !!js process.env.DATA_AID_QUERY_ASSERTION_SECRET
+        assertionTtlSeconds: !!js Number(process.env.DATA_AID_QUERY_ASSERTION_TTL_SECONDS ?? 30)
+        timeoutSeconds: !!js Number(process.env.DATA_AID_QUERY_TIMEOUT_SECONDS ?? 30)
+        maxRows: !!js Number(process.env.DATA_AID_QUERY_MAX_ROWS ?? 100)
+        maxResultChars: !!js Number(process.env.DATA_AID_QUERY_MAX_RESULT_CHARS ?? 65536)
+
+    - id: data-aid-turn-principal
+      name: '@deepseek-ai/dsh-authenticated-principal-data-aid/turn-principal'
+
+    - id: authenticated-principal
+      name: '@deepseek-ai/dsh-authenticated-principal-data-aid/mse-gateway'
+      config:
+        # This is the immediate source address observed by DSH, not an
+        # X-Forwarded-For value and not the public MSE address.
+        trustedProxyAddresses: !!js "[process.env.DSH_MSE_PROXY_IP]"
+        partition:
+          dt: !!js process.env.DATA_AID_AUTHORITY_DT
+          ht: !!js process.env.DATA_AID_AUTHORITY_HT
+        serverName: maxcompute-authority
+        toolName: execute_sql
+        project: giikin
+        maxCU: 10
+        timeoutSeconds: 30

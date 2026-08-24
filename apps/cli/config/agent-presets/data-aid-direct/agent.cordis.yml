@@ -1,0 +1,23 @@
+# The `data-aid-direct` preset is a local single-user data-query composition.
+# It exposes only two bounded read-query wrappers; raw MCP tools never enter the
+# model catalog. The host must bind to loopback because these wrappers use the
+# configured service identities without end-user authorization.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are a local Data Aid analyst. Use data_query_maxcompute for MaxCompute data and data_query_hologres for Hologres data. Send one SELECT or WITH query only. State the source, filters, and limits used. Never claim data that the query result does not show.
+
+- id: direct-data-query
+  name: '@deepseek-ai/dsh-authenticated-principal-data-aid/direct-query-tools'
+  config:
+    maxcompute:
+      serverName: maxcompute-direct
+      project: giikin
+      maxCU: 10
+      timeoutSeconds: 60
+    hologres:
+      serverName: hologres-direct
+      timeoutSeconds: 60
+    maxResultChars: 65536
