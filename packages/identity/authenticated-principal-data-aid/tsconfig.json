@@ -21,6 +21,9 @@
       "path": "../data-query"
     },
     {
+      "path": "../data-query-dic-be"
+    },
+    {
       "path": "../../runtime-diagnostics/invariants"
     },
     {

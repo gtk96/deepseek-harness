@@ -168,6 +168,8 @@
     { "path": "./packages/identity/anonymous-user-id" },
     { "path": "./packages/identity/authenticated-principal" },
     { "path": "./packages/identity/authenticated-principal-data-aid" },
+    { "path": "./packages/identity/data-query" },
+    { "path": "./packages/identity/data-query-dic-be" },
     { "path": "./packages/session/session-telemetry-otel" },
     { "path": "./packages/core/system-prompt" },
     { "path": "./packages/core/agent" },
