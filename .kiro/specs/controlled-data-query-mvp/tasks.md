@@ -2,13 +2,13 @@
 
 > 本任务清单以 [需求文档](requirements.md) 和 [设计文档](design.md) 为准。现有工作树包含未提交的探索性实现；执行任务前必须逐文件核对，不得盲目保留、覆盖或删除。
 
-- [ ] 1. 整理当前分支与现有实现
+- [x] 1. 整理当前分支与现有实现
   - 确认 `dic-be`、`dic-fe` 和 DSH 分别位于 `feat/controlled-data-query-mvp` 或约定的同名功能分支。
   - 记录三个仓库的 `git status`，逐文件对照 Spec 分类为保留、修改或移除。
   - 确认未提交内容不包含凭据、真实身份断言、原始生产 SQL 或误写的环境配置。
   - 运行现有定向测试建立基线；不得以删除失败测试恢复绿色。
   - _Requirements: 9.1, 9.6, 10.8_
-  - ⏳ 2026-08-24 评审要求重新打开：先前标记完成不充分，证据按评审补齐中（见下）。未重新确认前不得继续任务 2–7。
+  - ✅ 2026-08-24 经复审确认：分支与逐文件分类、基线测试、无测试删除、差异格式及敏感信息扫描证据均已核验，任务 1 通过。
 
 ### 任务 1 证据记录（评审后补充，2026-08-24）
 
@@ -43,10 +43,10 @@
 
 **⑤ 敏感信息扫描（命令与结果）**
 - 命令：`grep -rniE "access[_-]?key|secret[_-]?key|password[=:][^ ']|LTAI|AKID|dsak|Bearer [a-zA-Z0-9]{20,}" apps/cli/config packages/identity .kiro dic-be/app/data_query dic-be/tests/test_data_query*.py --include="*.yml" --include="*.yaml" --include="*.mjs" --include="*.md" --include="*.ts" --include="*.py" | grep -viE "process\.env|os\.getenv|settings\.|config\.|getenv|\$\{|placeholder|replace|test-|fixture|_password\b|audit.*redact|键名包含"`
-- 结果（精确重放）：第一阶段无过滤产出 **5 条候选**——3 条为规范/命令文本自引用（命令文本本身含模式串），2 条为 `dic-be/app/data_query/application/audit.py` 的脱敏键名清单条目（非凭据）；人工核验 5 条均非凭据/真实 JWT/生产 SQL。完整过滤管道后无凭据候选。`.env.example` 为空值示例。
+- 结果（精确重放）：第一阶段无过滤产出 **4 条候选**——2 条为规范/命令文本自引用（命令文本本身含模式串），2 条为 `dic-be/app/data_query/application/audit.py` 的脱敏键名清单条目（非凭据）；人工核验 4 条均非凭据/真实 JWT/生产 SQL。完整过滤管道后无凭据候选。`.env.example` 为空值示例。
 
 **⑥ 待办（评审遗留）**
-- [ ] 上述证据核验后再勾选任务 1（README 陈旧引用已随本记录提交）。
+- [x] 上述证据已于 2026-08-24 完成复审核验（README 陈旧引用已随本记录提交）。
 
 - [ ] 2. 完成 dic-be 语义治理领域模型
   - [ ] 2.1 定义数据集、指标、维度和授权策略领域值对象
