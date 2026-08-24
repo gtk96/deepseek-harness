@@ -48,20 +48,22 @@
 **⑥ 待办（评审遗留）**
 - [x] 上述证据已于 2026-08-24 完成复审核验（README 陈旧引用已随本记录提交）。
 
-- [ ] 2. 完成 dic-be 语义治理领域模型
-  - [ ] 2.1 定义数据集、指标、维度和授权策略领域值对象
+- [x] 2. 完成 dic-be 语义治理领域模型
+  - [x] 2.1 定义数据集、指标、维度和授权策略领域值对象
     - 定义发布状态、MaxCompute 数据源、物理映射、指标聚合、维度类型与允许过滤操作。
     - 定义用户/数据角色主体、allow/deny 和有效期。
     - 保持领域对象与 SQLAlchemy 实体解耦。
     - _Requirements: 4.1–4.10, 5.1–5.6_
-  - [ ] 2.2 实现默认拒绝授权函数
+  - [x] 2.2 实现默认拒绝授权函数
     - 按数据集、指标、维度、过滤维度和排序字段逐项授权。
     - 实现 deny 优先、未知主体不匹配、过期策略不生效。
     - 输出不可变 `AuthorizedSemanticQuery` 和稳定拒绝原因码。
     - _Requirements: 4.1–4.8, 8.1_
-  - [ ] 2.3 增加领域属性测试与示例测试
+  - [x] 2.3 增加领域属性测试与示例测试
     - 覆盖空策略、混合 allow/deny、重复字段、极限 limit 和非 MaxCompute 数据集。
     - _Requirements: 4.1–4.8, 5.5_
+
+  - ✅ 2026-08-24 实现：value objects（dimension_type/allowed_ops、有效期、filters/timeRange/orderBy 对齐 DSH 侧 DataQueryRequest）；authorize_semantic_query 默认拒绝 + deny 优先 + 过期/未来策略不生效 + 过滤/时间范围/排序授权 + 重复字段拒绝；48 个 data_query 测试通过（含 hypothesis 属性测试）。实现见 dic-be 分支 feat/task2-semantic-governance。待 kiro-cli 评审。
 
 - [ ] 3. 完成 dic-be 治理与会话持久化
   - [ ] 3.1 定义并创建 `dq_*` ORM 表
