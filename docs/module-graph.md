@@ -222,6 +222,8 @@ flowchart TD
   end
   subgraph group_identity["packages/identity"]
     pkg_anonymous_user_id["anonymous-user-id"]
+    pkg_authenticated_principal["authenticated-principal"]
+    pkg_authenticated_principal_data_aid["authenticated-principal-data-aid"]
   end
   subgraph group_interaction["packages/interaction"]
     pkg_commands["commands"]
@@ -379,6 +381,8 @@ flowchart TD
   pkg_anonymous_user_id --> pkg_brand
   pkg_anonymous_user_id --> pkg_home_paths
   pkg_anonymous_user_id --> pkg_invariants
+  pkg_authenticated_principal --> pkg_brand
+  pkg_authenticated_principal --> pkg_invariants
   pkg_settings --> pkg_brand
   pkg_settings --> pkg_invariants
   pkg_storage_domain --> pkg_invariants
@@ -1162,6 +1166,7 @@ flowchart TD
   pkg_subagent_dsh_sdk --> pkg_session
   pkg_subagent_dsh_sdk --> pkg_subagent
   pkg_subagent_dsh_sdk --> pkg_subprocess
+  pkg_api_gateway --> pkg_authenticated_principal
   pkg_api_gateway --> pkg_client_connection
   pkg_api_gateway --> pkg_invariants
   pkg_api_gateway --> pkg_typert_registry
@@ -1175,6 +1180,10 @@ flowchart TD
   pkg_acp_demo --> pkg_session_query
   pkg_acp_demo --> pkg_session_query_sqlite
   pkg_acp_demo --> pkg_tools
+  pkg_authenticated_principal_data_aid --> pkg_authenticated_principal
+  pkg_authenticated_principal_data_aid --> pkg_client_connection
+  pkg_authenticated_principal_data_aid --> pkg_invariants
+  pkg_authenticated_principal_data_aid --> pkg_mcp_client
   pkg_api_remotes --> pkg_agent
   pkg_api_remotes --> pkg_agent_presets
   pkg_api_remotes --> pkg_api_gateway
@@ -1490,6 +1499,7 @@ flowchart TD
 | [`host-frontend-static`](../packages/host/frontend-static) | `host` | [`host-webserver`](../packages/host/webserver), [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`host-plugin-inventory`](../packages/host/plugin-inventory) | `host` | [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`typert-protocol`](../packages/typert/protocol) |
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths), [`invariants`](../packages/runtime-diagnostics/invariants) |
+| [`authenticated-principal`](../packages/identity/authenticated-principal) | `identity` | [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`settings`](../packages/settings/settings) | `settings` | [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`storage-domain`](../packages/storage/storage-domain) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
 | [`storage-json`](../packages/storage/storage-json) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
@@ -1638,8 +1648,9 @@ flowchart TD
 | [`sdk-client`](../packages/sdk/client) | `sdk` | [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
 | [`sdk-jsonrpc-server`](../packages/sdk/server) | `sdk` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`llm-deepseek`](../packages/llm/llm-deepseek), [`scope`](../packages/core/scope), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
 | [`subagent-dsh-sdk`](../packages/subagent/subagent-dsh-sdk) | `subagent` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`sdk-client`](../packages/sdk/client), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess) |
-| [`api-gateway`](../packages/api/gateway) | `api` | [`client-connection`](../packages/client/connection), [`invariants`](../packages/runtime-diagnostics/invariants), [`typert-registry`](../packages/typert/registry) |
+| [`api-gateway`](../packages/api/gateway) | `api` | [`authenticated-principal`](../packages/identity/authenticated-principal), [`client-connection`](../packages/client/connection), [`invariants`](../packages/runtime-diagnostics/invariants), [`typert-registry`](../packages/typert/registry) |
 | [`acp-demo`](../packages/examples/acp-demo) | `examples` | [`acp`](../packages/acp/acp), [`agent-instructions`](../packages/context/agent-instructions), [`agent-spine-demo`](../packages/examples/agent-spine-demo), [`app-boot`](../packages/boot/app-boot), [`invariants`](../packages/runtime-diagnostics/invariants), [`session-checkpoint-policy`](../packages/session/session-checkpoint-policy), [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`tools`](../packages/core/tools) |
+| [`authenticated-principal-data-aid`](../packages/identity/authenticated-principal-data-aid) | `identity` | [`authenticated-principal`](../packages/identity/authenticated-principal), [`client-connection`](../packages/client/connection), [`invariants`](../packages/runtime-diagnostics/invariants), [`mcp-client`](../packages/mcp/mcp-client) |
 | [`api-remotes`](../packages/api/remotes) | `api` | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`api-gateway`](../packages/api/gateway), [`commands`](../packages/interaction/commands), [`cordis-host-runner`](../packages/extensions/cordis-host-runner), [`credentials`](../packages/credentials/credentials), [`file-reference`](../packages/context/file-reference), [`goal`](../packages/goal/goal), [`host-plugin-inventory`](../packages/host/plugin-inventory), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`message-feedback`](../packages/feedback/message-feedback), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-reference`](../packages/context/session-reference), [`settings`](../packages/settings/settings), [`typert-registry`](../packages/typert/registry) |
 | [`client-runtime`](../packages/client/runtime) | `client` | [`agent`](../packages/core/agent), [`api-remotes`](../packages/api/remotes), [`attachment`](../packages/attachment/attachment), [`client-connection`](../packages/client/connection), [`commands`](../packages/interaction/commands), [`host-apiproxy`](../packages/host/apiproxy), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`llm-retry`](../packages/llm/llm-retry), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`session-title`](../packages/session/session-title), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`typert-registry`](../packages/typert/registry) |
 | [`client-ui-renderer`](../packages/client/ui-renderer) | `client` | [`client-runtime`](../packages/client/runtime), [`invariants`](../packages/runtime-diagnostics/invariants) |

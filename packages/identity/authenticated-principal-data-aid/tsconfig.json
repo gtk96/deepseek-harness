@@ -1,0 +1,42 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cosmokit"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../authenticated-principal"
+    },
+    {
+      "path": "../data-query"
+    },
+    {
+      "path": "../../runtime-diagnostics/invariants"
+    },
+    {
+      "path": "../../mcp/mcp-client"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../client/connection/tsconfig.host.json"
+    }
+  ]
+}
