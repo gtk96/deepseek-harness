@@ -6,6 +6,8 @@ Two-sided Typert RPC endpoint for Host and Client Cordis environments. The Host 
 
 ## Host service: `TypertGatewayService` (ctx key: `typertGateway`)
 
+The Host entry optionally consumes `ctx.authenticatedPrincipal`. When that Service is composed, the shared `/api` interceptor authenticates the original Fetch `Request` before decoding business invocation, establishes the resulting Principal around descriptor resolution and business execution, and maps provider failures to the stable RPC `unauthorized` code. Direct callers pass an explicit Principal when they need one; a direct call without one clears any ambient Principal instead of inheriting it. The Principal is internal Gateway data and never enters Typert wire `args`, Session state, Agent ownership, or model requests.
+
 `ctx.typertGateway.invoke()` resolves the current descriptor and Cordis Service for each call, validates exact named arguments, resolves registered object or Context identities, invokes the public business method, and validates its result. Business Services extend `TypertRemoteService` and mark methods with `@Remote` or `@RemoteScope` from [`dsh-typert-protocol`](../../typert/protocol/README.md); `bindTypertRemote()` remains available when another base class owns inheritance.
 
 Strict mode reads generated invocation descriptors from `ctx.typert.local`. Lookup parameters use the currently active resolver in `ctx.typert.lookups`: the business package registers the stable declaration and default policy, while Host composition can override resolution behavior with effect-scoped `configure()`; `@RemoteScope` resolves its receiver through a registered Host Context provider. SRC mode is a development fallback for endpoints that have never had a strict definition; it parses simple parameter names and accepts only JSON-safe values for non-lookup parameters. Withdrawing an observed strict definition fails instead of weakening validation.
@@ -34,7 +36,7 @@ No direct effect; invoked business Services own any model-visible result.
 
 ## Known Limitations and Deferred Work
 
-- The Connection adapter maps ordinary dispatch failures and business exceptions to the RPC `internal` code with empty details; lookup-policy errors carried by `TypertLookupFailure` are returned unchanged. Structured `TypertGatewayError` categories remain available only to same-process callers.
+- The Connection adapter maps ordinary dispatch failures and business exceptions to the RPC `internal` code with empty details; Principal authentication failures use `unauthorized` with a generic message and empty details; lookup-policy errors carried by `TypertLookupFailure` are returned unchanged. Structured `TypertGatewayError` categories remain available only to same-process callers.
 - SRC mode supports unique identifier parameters without destructuring, defaults, or rest parameters. It validates JSON safety rather than generated business types and never infers optional fields.
 - Only strict generated contributions can mount on the Client face. SRC markers have no Client codec or type projection.
 - The package dispatches unary methods only. Incremental Session data uses a separate named-stream protocol over the same Connection.

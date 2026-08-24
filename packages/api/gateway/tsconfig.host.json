@@ -21,6 +21,9 @@
       "path": "../../runtime-diagnostics/invariants"
     },
     {
+      "path": "../../identity/authenticated-principal"
+    },
+    {
       "path": "../../client/connection/tsconfig.host.json"
     },
     {

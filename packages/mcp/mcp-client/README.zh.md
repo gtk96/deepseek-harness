@@ -9,6 +9,9 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 `cordis.yml` 中每个 MCP 服务器使用一个插件实例：
 
 ```yaml
+- id: mcp-clients
+  name: '@deepseek-ai/dsh-mcp-client/mcp-clients'
+
 - id: mcp-github
   name: '@deepseek-ai/dsh-mcp-client'
   config:
@@ -31,6 +34,30 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 
 模型会看到 `mcp__github__create_issue`、`mcp__web__search` 等工具，这与 Claude Code 和 Codex 使用的服务器限定形状相同。HMR（热模块替换）支持热替换：编辑配置项会触发断开 + 重新连接，无需重启进程；`serverName` 不变时会生成完全相同的工具名称。
 
+当 MCP server 只供 request 认证等内部 Consumer 使用时，设置 `exposeTools: false`。连接仍可通过 `ctx.mcpClients` 调用，但会跳过工具发现，该服务器的任何工具都不会进入模型工具 registry。
+
+## 直接调用 MCP
+
+在每个桥接实例之前挂载 `@deepseek-ai/dsh-mcp-client/mcp-clients`。设置 `exposeTools: false` 后，非模型 Consumer 可以调用当前已连接的客户端，无需经由 `ctx.tools` 注册，也不会向模型暴露工具：
+
+```ts
+import type { McpClientRegistry } from '@deepseek-ai/dsh-mcp-client/mcp-clients'
+
+declare const ctx: { mcpClients: McpClientRegistry }
+declare const signal: AbortSignal
+
+async function callIssueTool() {
+  return ctx.mcpClients.call({
+    serverName: 'github',
+    toolName: 'create_issue',
+    arguments: { title: 'Bug report' },
+    signal,
+  })
+}
+```
+
+`call()` 会转发原始 MCP 工具名称、参数、取消信号和该服务器配置的 `toolCallTimeoutMs`；它返回未经验证的 MCP 响应记录，由消费者自行验证。服务器断开期间、重试耗尽后或桥接插件 dispose（资源释放）后，调用会被拒绝。模型工具发现和执行行为保持不变。
+
 ## 配置
 
 | 字段 | 传输 | 必填 | 描述 |
@@ -44,6 +71,7 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 | `url` | http | 是 | MCP 服务器 URL |
 | `headers` | http | 否 | 额外标头（例如认证 token） |
 | `toolCallTimeoutMs` | 两者 | 否 | 每次 `callTool` 调用的超时（默认 60000） |
+| `exposeTools` | 两者 | 否 | 是否将已发现工具发布到 `ctx.tools` 和模型（默认 `true`）；仅直接 Consumer 使用时设为 `false` |
 | `failOnStartupError` | 两者 | 否 | 初始连接或工具同步失败时拒绝插件激活（默认 `false`） |
 | `reconnect.enabled` | 两者 | 否 | 连接丢失后自动重新连接（默认 `true`） |
 | `reconnect.initialDelayMs` | 两者 | 否 | 首次重连延迟（毫秒）；每次连续失败尝试翻倍（默认 500） |
@@ -75,6 +103,7 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 | 服务 | 用途 |
 |---|---|
 | `ctx.tools` | 注册／注销 MCP 工具 |
+| `ctx.mcpClients` | 直接向当前已连接的已配置服务器分派原始 `tools/call` |
 | `ctx.attachments` | 可选；在模型投影前校验并持久保存图片结果批次 |
 | `ctx.llm` | 可选；证明确切调用路由明确支持图片输入 |
 

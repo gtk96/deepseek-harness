@@ -76,21 +76,26 @@ function listToolsUncached(client: Client, cursor?: string) {
   )
 }
 
-/** Call without the SDK pre-validating an output schema the bridge may not support. */
-function callToolUncached(
+/**
+ * Send one raw MCP tool request without the SDK output-schema cache.
+ * @param client - connected MCP client that owns the transport.
+ * @param rawName - MCP wire tool name, never the model-facing public name.
+ * @param args - MCP tool arguments.
+ * @param signal - caller cancellation forwarded to the MCP request.
+ * @param timeout - configured MCP call timeout in milliseconds.
+ * @returns unvalidated MCP response record for the caller to validate.
+ */
+export function callToolUncached(
   client: Client,
   rawName: string,
   args: Record<string, unknown>,
-  exec: ToolExecution,
-  opts: ToolBridgeOptions,
-) {
+  signal: AbortSignal,
+  timeout: number,
+): Promise<Record<string, unknown>> {
   return client.request(
     { method: 'tools/call', params: { name: rawName, arguments: args } },
     RawCallToolResultSchema,
-    {
-      signal: exec.signal,
-      timeout: opts.toolCallTimeoutMs,
-    },
+    { signal, timeout },
   )
 }
 
@@ -317,7 +322,7 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const result = await callToolUncached(client, rawName, argsObj, exec.signal, opts.toolCallTimeoutMs)
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {

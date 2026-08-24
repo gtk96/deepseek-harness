@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import { Readable } from 'node:stream'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { bridge } from '../src/http-bridge.ts'
+import { bridge, transportPeerAddressOf } from '../src/http-bridge.ts'
 
 describe('HTTP bridge abort', () => {
   it('destroys a declared-oversize request instead of draining it', async () => {
@@ -31,6 +31,33 @@ describe('HTTP bridge abort', () => {
     expect(status).toBe(413)
     expect(headers).toMatchObject({ connection: 'close' })
     expect(destroyed).toHaveLength(1)
+  })
+
+  it('attaches the direct TCP peer address as non-wire Fetch metadata', async () => {
+    const request = Readable.from([]) as unknown as IncomingMessage
+    Object.assign(request, {
+      url: '/api/pluginInventory/list',
+      method: 'POST',
+      headers: { host: 'dsh.internal' },
+      socket: { remoteAddress: '::ffff:10.0.0.8' },
+    })
+    const response = Object.assign(new EventEmitter(), {
+      writableEnded: false,
+      writeHead() { return this },
+      write() { return true },
+      end() { this.writableEnded = true; return this },
+    }) as unknown as ServerResponse
+    let peerAddress: string | undefined
+
+    await bridge(request, response, {
+      fetch: async (fetchRequest) => {
+        peerAddress = transportPeerAddressOf(fetchRequest)
+        return new Response()
+      },
+    })
+
+    expect(peerAddress).toBe('::ffff:10.0.0.8')
+    expect(transportPeerAddressOf(new Request('http://dsh.internal/api'))).toBeUndefined()
   })
 
   it('aborts a pending native picker request when the browser disconnects', async () => {

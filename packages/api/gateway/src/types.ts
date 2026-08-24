@@ -3,6 +3,8 @@
  * @module @deepseek-ai/dsh-api-gateway/types
  */
 
+import type { AuthenticatedPrincipal } from '@deepseek-ai/dsh-authenticated-principal'
+
 /** One Remote method request after a carrier has decoded its envelope. */
 export interface InvokeRemoteRequest {
   /** Remote namespace selected by the generated descriptor. */
@@ -11,6 +13,8 @@ export interface InvokeRemoteRequest {
   readonly method: string
   /** Named wire values; fields must exactly match the descriptor. */
   readonly args: Readonly<Record<string, unknown>>
+  /** Explicit request-local Principal; this field is internal and never enters wire args. */
+  readonly principal?: AuthenticatedPrincipal
   /** Carrier or direct-caller cancellation injected only into cancellation-aware methods. */
   readonly signal?: AbortSignal
 }
@@ -18,6 +22,7 @@ export interface InvokeRemoteRequest {
 /** Stable infrastructure and boundary failures emitted before or after business execution. */
 export type TypertGatewayErrorCode =
   | 'ambiguous-endpoint'
+  | 'authentication-unavailable'
   | 'arguments-invalid'
   | 'binding-invalid'
   | 'context-failed'
@@ -39,7 +44,7 @@ export type TypertGatewayErrorCode =
 export interface TypertGateway {
   /**
    * Invoke one live Remote method without assuming a carrier or response envelope.
-   * @param request - decoded endpoint and named wire arguments.
+   * @param request - decoded endpoint and named wire arguments; an optional internal Principal is never part of `args`.
    * @returns the validated business result.
    * @throws {@link TypertGatewayError} for dispatch, provider, or boundary failures; lookup-policy and business errors retain identity.
    */

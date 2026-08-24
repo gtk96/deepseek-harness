@@ -11,11 +11,18 @@ export interface ConnectionRpcHandlerOptions {
   readonly authority: ConnectionRpcAuthority
 }
 
+/** Fetch request metadata passed to a decoded RPC handler without entering the wire payload. */
+export interface ConnectionRpcRequest {
+  /** Original Fetch request for transport-local authentication and request metadata. */
+  readonly request: Request
+}
+
 /** Handler invoked after Connection has decoded the transport envelope. */
 export type ConnectionRpcHandler = (
   endpoint: string,
   payload: unknown,
   signal: AbortSignal,
+  transport?: ConnectionRpcRequest,
 ) => Promise<RpcResult<unknown>>
 
 /** Synchronous ownership test for one endpoint on a shared RPC channel. */

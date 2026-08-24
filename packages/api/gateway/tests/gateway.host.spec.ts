@@ -4,6 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { apply as applyConnection, inject as connectionInject } from '@deepseek-ai/dsh-client-connection'
+import {
+  AuthenticatedPrincipalService,
+  PrincipalAuthenticationError,
+  type AuthenticatedPrincipal,
+} from '@deepseek-ai/dsh-authenticated-principal'
 import type { WebServer, WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
   bindTypertRemote,
@@ -84,6 +89,15 @@ class GoalService extends Service {
   }
 
   @Remote
+  async currentPrincipal(): Promise<unknown> {
+    this.calls.push('currentPrincipal')
+    const principalService = this.ctx.get('authenticatedPrincipal')
+    if (principalService === undefined) throw new Error('fixture Principal service unavailable')
+    await Promise.resolve()
+    return principalService.require()
+  }
+
+  @Remote
   fail(request: unknown): never {
     void request
     this.calls.push('fail')
@@ -134,6 +148,30 @@ class FakeConnectionService extends Service {
           }
         }),
     }
+  }
+}
+
+class FixturePrincipalService extends AuthenticatedPrincipalService {
+  readonly requests: Request[] = []
+  reject = false
+
+  override async authenticate(request: Request, signal: AbortSignal): Promise<AuthenticatedPrincipal> {
+    void signal
+    this.requests.push(request)
+    const userId = request.headers.get('x-fixture-user')
+    if (this.reject || userId === null) throw new PrincipalAuthenticationError()
+    return fixturePrincipal(userId)
+  }
+}
+
+function fixturePrincipal(userId: string): AuthenticatedPrincipal {
+  return {
+    ddUserId: userId as AuthenticatedPrincipal['ddUserId'],
+    gkUserId: `gk:${userId}` as AuthenticatedPrincipal['gkUserId'],
+    gimpStaffId: `staff:${userId}` as AuthenticatedPrincipal['gimpStaffId'],
+    dataRole: 'query' as AuthenticatedPrincipal['dataRole'],
+    teamCodes: [`team:${userId}`] as unknown as AuthenticatedPrincipal['teamCodes'],
+    dataOrgCodes: [`org:${userId}`] as unknown as AuthenticatedPrincipal['dataOrgCodes'],
   }
 }
 
@@ -1044,6 +1082,107 @@ describe('TypertGatewayService', () => {
 
     await gatewayFiber.dispose()
     expect(connection.handler).toBeUndefined()
+  })
+
+  it('authenticates each HTTP Remote invocation with a request-local Principal', async () => {
+    const ctx = new Context()
+    const routes: WebRoute[] = []
+    ctx.provide('webServer', fakeHttpServer(routes) as WebServer)
+    const connectionFiber = ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
+    await connectionFiber
+    await ctx.plugin(TypertRegistry)
+    const principalFiber = ctx.plugin(FixturePrincipalService)
+    await principalFiber
+    const gatewayFiber = ctx.plugin(TypertGatewayService)
+    await gatewayFiber
+    const goalFiber = ctx.plugin(GoalService)
+    await goalFiber
+    const server = await serveRoute(routes[0]!)
+
+    const call = (userId?: string): Promise<Response> => fetch(`${server.origin}/api/goals/currentPrincipal`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(userId === undefined ? {} : { 'x-fixture-user': userId }),
+      },
+      body: JSON.stringify({
+        type: 'client-request',
+        rpcId: userId === undefined ? 'rpc-missing-user' : `rpc-${userId}`,
+        method: 'goals/currentPrincipal',
+        payload: { args: {} },
+      }),
+    })
+
+    try {
+      const [alice, bob] = await Promise.all([call('alice'), call('bob')])
+      await expect(alice.json()).resolves.toMatchObject({
+        result: { ok: true, value: { ddUserId: 'alice', gkUserId: 'gk:alice' } },
+      })
+      await expect(bob.json()).resolves.toMatchObject({
+        result: { ok: true, value: { ddUserId: 'bob', gkUserId: 'gk:bob' } },
+      })
+
+      const missing = await call()
+      expect(await missing.json()).toMatchObject({
+        result: { ok: false, error: { code: 'unauthorized', message: 'authentication failed', details: {} } },
+      })
+      const principalService = ctx.get('authenticatedPrincipal')
+      if (principalService === undefined) throw new Error('fixture Principal service was not installed')
+      expect(principalService.current()).toBeUndefined()
+    } finally {
+      await server.close()
+      await goalFiber.dispose()
+      await gatewayFiber.dispose()
+      await principalFiber.dispose()
+      await connectionFiber.dispose()
+    }
+  })
+
+  it('returns unauthorized when an authenticated RPC handler lacks Fetch transport metadata', async () => {
+    const ctx = new Context()
+    await ctx.plugin(TypertRegistry)
+    const connectionFiber = ctx.plugin(FakeConnectionService)
+    await connectionFiber
+    const principalFiber = ctx.plugin(FixturePrincipalService)
+    await principalFiber
+    const gatewayFiber = ctx.plugin(TypertGatewayService)
+    await gatewayFiber
+    const handler = rawConnection(ctx).handler
+    if (handler === undefined) throw new Error('fixture Connection did not retain the /api interceptor')
+
+    await expect(handler('goals/currentPrincipal', { args: {} }, new AbortController().signal)).resolves.toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'authentication failed', details: {} },
+    })
+
+    await gatewayFiber.dispose()
+    await principalFiber.dispose()
+    await connectionFiber.dispose()
+  })
+
+  it('clears ambient Principals for direct invokes and requires the service for explicit Principals', async () => {
+    const { ctx } = await setup()
+    const principalFiber = ctx.plugin(FixturePrincipalService)
+    await principalFiber
+    const principalService = ctx.get('authenticatedPrincipal')
+    if (principalService === undefined) throw new Error('fixture Principal service was not installed')
+    const principal = fixturePrincipal('ambient')
+
+    await principalService.withPrincipal(principal, async () => {
+      await expect(ctx.typertGateway.invoke({
+        namespace: 'goals', method: 'currentPrincipal', args: {},
+      })).rejects.toThrow('no authenticated principal is active')
+      await expect(ctx.typertGateway.invoke({
+        namespace: 'goals', method: 'currentPrincipal', args: {}, principal,
+      })).resolves.toMatchObject({ ddUserId: 'ambient' })
+      expect(principalService.current()).toBe(principal)
+    })
+    await principalFiber.dispose()
+
+    const noPrincipalService = await setup()
+    await expect(noPrincipalService.ctx.typertGateway.invoke({
+      namespace: 'goals', method: 'currentPrincipal', args: {}, principal,
+    })).rejects.toMatchObject({ code: 'authentication-unavailable' })
   })
 
   it('preserves a lookup policy rejection through the Connection RPC result', async () => {

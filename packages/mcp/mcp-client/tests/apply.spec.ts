@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import McpClientRegistry from '@deepseek-ai/dsh-mcp-client/src/mcp-clients.ts'
 import type { Config } from '@deepseek-ai/dsh-mcp-client'
 
 // ---- Mock MCP SDK ----
@@ -62,6 +63,7 @@ async function mountRegistry(): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(McpClientRegistry)
   return ctx
 }
 
@@ -90,7 +92,7 @@ const stdioConfig: Config = {
 describe('mcp-client plugin module exports', () => {
   it('exports name, inject, and Config', () => {
     expect(name).toBe('mcp-client')
-    expect(inject).toEqual(['tools'])
+    expect(inject).toEqual(['tools', 'mcpClients'])
     expect(ConfigSchema).toBeDefined()
   })
 
@@ -181,6 +183,26 @@ describe('apply (plugin lifecycle)', () => {
     expect(ctx.tools.get('remote')).toBeUndefined()
   })
 
+  it('registers a direct raw caller only while its connected client is live', async () => {
+    const fiber = ctx.plugin({ name: 'mcp-client', inject, apply }, stdioConfig)
+    await fiber
+    const signal = new AbortController().signal
+
+    await expect(ctx.mcpClients.call({
+      serverName: 'srv', toolName: 'admin.reset', arguments: { force: true }, signal,
+    })).resolves.toEqual({ content: [{ type: 'text', text: 'ok' }] })
+    expect(mockCallTool).toHaveBeenCalledWith(
+      { name: 'admin.reset', arguments: { force: true } },
+      undefined,
+      expect.objectContaining({ signal, timeout: 60_000 }),
+    )
+
+    await fiber.dispose()
+    await expect(ctx.mcpClients.call({
+      serverName: 'srv', toolName: 'admin.reset', arguments: {}, signal,
+    })).rejects.toThrow('mcp client "srv" is unavailable')
+  })
+
   it('keeps the Cordis plugin loading until initial discovery publishes its tools', async () => {
     const connection: PromiseWithResolvers<void> = Promise.withResolvers()
     mockConnect.mockImplementation(async () => {
@@ -212,6 +234,7 @@ describe('apply (plugin lifecycle)', () => {
     const first = new Context()
     await first.plugin(SystemPrompt)
     await first.plugin(ToolRuntime)
+    await first.plugin(McpClientRegistry)
     await apply(first, stdioConfig)
 
     await first.fiber.dispose()
@@ -222,6 +245,7 @@ describe('apply (plugin lifecycle)', () => {
     const second = new Context()
     await second.plugin(SystemPrompt)
     await second.plugin(ToolRuntime)
+    await second.plugin(McpClientRegistry)
     await expect(apply(second, stdioConfig)).resolves.toBeUndefined()
     await second.fiber.dispose()
   })
@@ -350,7 +374,7 @@ describe('apply (plugin lifecycle)', () => {
   it('effect disposer unregisters the CURRENT generation and closes client', async () => {
     // Load through ctx.plugin so ONLY the plugin's fiber is disposed — the
     // registry must survive to observe the unregistration.
-    const fiber = ctx.plugin({ name: 'mcp-client', inject: ['tools'], apply }, stdioConfig)
+    const fiber = ctx.plugin({ name: 'mcp-client', inject, apply }, stdioConfig)
     await fiber
 
     // Advance to a second generation first.
@@ -399,5 +423,36 @@ describe('apply (plugin lifecycle)', () => {
 
     expect(mockConnect).toHaveBeenCalled()
     expect(ctx.tools.get('mcp__web__remote')).toBeDefined()
+  })
+})
+
+
+describe('direct-only MCP bridge', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockConnect.mockResolvedValue(undefined)
+    mockClose.mockImplementation(function (this: { onclose?: () => void }) {
+      this.onclose?.()
+      return Promise.resolve()
+    })
+    mockListTools.mockResolvedValue({
+      tools: [{ name: 'execute_sql', inputSchema: { type: 'object' } }],
+      nextCursor: undefined,
+    })
+    mockCallTool.mockResolvedValue({ structuredContent: { success: true, data: [] } })
+  })
+
+  it('keeps a direct caller available without discovering or registering model tools', async () => {
+    const ctx = await mountRegistry()
+    const signal = new AbortController().signal
+    await apply(ctx, { ...stdioConfig, exposeTools: false })
+
+    expect(mockListTools).not.toHaveBeenCalled()
+    expect(mockSetNotificationHandler).not.toHaveBeenCalled()
+    expect(ctx.tools.get('mcp__srv__execute_sql')).toBeUndefined()
+    await expect(ctx.mcpClients.call({
+      serverName: 'srv', toolName: 'execute_sql', arguments: { sql: 'SELECT 1' }, signal,
+    })).resolves.toEqual({ structuredContent: { success: true, data: [] } })
+    await ctx.fiber.dispose()
   })
 })
