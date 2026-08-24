@@ -297,6 +297,13 @@ export async function serializeMessagesWithImages(
   return wire
 }
 
+/** Materialize the empty required list expected by strict OpenAI-compatible gateways. */
+function wireToolParameters(parameters: Record<string, unknown>): Record<string, unknown> {
+  return parameters.type === 'object' && parameters.required === undefined
+    ? { ...parameters, required: [] }
+    : parameters
+}
+
 /** Assemble request fields shared by text-only and image-capable conversion. */
 function requestWithMessages(
   options: GenerateOptions,
@@ -308,7 +315,7 @@ function requestWithMessages(
     function: {
       name: tool.name,
       description: tool.description,
-      parameters: tool.parameters,
+      parameters: wireToolParameters(tool.parameters),
     },
   }))
   const resolvedThinking = resolveThinking(options, defaults)

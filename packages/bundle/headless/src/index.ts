@@ -100,8 +100,17 @@ async function run(ctx: Context, task: string, io: HeadlessIo): Promise<void> {
   const agents = ctx.get('agents')
   const defaultModel = ctx.get('agentDefaultModel')
   const sessions = ctx.get('sessions')
-  // Early process shutdown can dispose the tree while settlement is pending.
-  if (agents === undefined || defaultModel === undefined || sessions === undefined) return
+  // A disposal during settlement must fail the one-shot invocation instead of
+  // letting Node finish successfully without a task, session, or diagnostic.
+  if (agents === undefined || defaultModel === undefined || sessions === undefined) {
+    const missing = [
+      ...agents === undefined ? ['agents'] : [],
+      ...defaultModel === undefined ? ['agentDefaultModel'] : [],
+      ...sessions === undefined ? ['sessions'] : [],
+    ]
+    fail(io, new Error(`headless-runner: required services unavailable after Loader settlement: ${missing.join(', ')}`))
+    return
+  }
 
   const selection = defaultModel.currentSelection()
   // This bundle composes no preset roster, so the model-facing rows sit in the
