@@ -14,12 +14,12 @@
 
 **① 分支与 SHA**
 - 三仓库均于 `feat/controlled-data-query-mvp`。
-- DSH：head `644d368ce9`（证据提交后最新），功能基线 `3e435bdb4b`（Merge upstream/master），9 笔提交，`git diff --name-status 3e435bdb4b...644d368ce9` = **164 文件**（+7723/−100）。
-- dic-be：head `fd723ebb2430437e42a5dfdd6c2a6404ebb69718`，未提交 25 路径。
+- DSH：功能基线 `3e435bdb4b`（Merge upstream/master，稳定不漂移）。功能工作已全部提交至分支；**复现变更清单用 `git diff --name-status 3e435bdb4b...HEAD`**（本记录落笔时 = 164 文件 / +7723 −100；HEAD 会随后续提交推进，故不在此钉死单一 SHA）。
+- dic-be：head `fd723ebb2430437e42a5dfdd6c2a6404ebb69718`，未提交 25 路径（见 ③）。
 - dic-fe：head `7651cb4a11aa7a2f308ca832308d63b8fa01e650`，工作树干净。
 
 **② DSH 未提交内容**
-- 全部已提交（9 笔）；`dic-be/`、`dic-fe/` 为独立仓库已 gitignore（`git check-ignore dic-be` 通过）。
+- 全部已提交（`git log --oneline 3e435bdb4b..HEAD` 为提交清单）；`dic-be/`、`dic-fe/` 为独立仓库已 gitignore（`git check-ignore dic-be` 通过）。
 
 **③ dic-be 25 路径逐文件分类（保留=基座待后续任务完善；修改=与 Spec 冲突必须改）**
 | 路径 | 分类 | 对应 Spec Task | 依据 |
