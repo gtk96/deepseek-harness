@@ -129,6 +129,8 @@ Real-API tests and demos read `DEEPSEEK_API_KEY`, optional `DEEPSEEK_BASE_URL`, 
 - **Labels:** one PR `kind/*`, all material `area/*`, and native Issue Type ([taxonomy](.agents/notes/implemented/process/2026-08-08-unified-github-label-taxonomy.md)).
 - TODO markers: `FIXME`/`TODO`/`XXX` by urgency ([semantics](docs/development.md)).
 - Files end with exactly one trailing newline; `git diff --cached --check` (pre-commit) gates it.
+- **Branch**: feature branches only; never commit to master.
+- **Preset conditioning**: [rules](.agents/notes/implemented/architecture/2026-08-24-preset-conditioning-principles.md).
 
 ## Defensive patterns
 
