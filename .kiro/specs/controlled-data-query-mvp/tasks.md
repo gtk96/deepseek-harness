@@ -38,12 +38,12 @@
 
 **④ 基线命令与结果（实际运行）**
 - DSH：`node_modules/.bin/vitest run packages/api/gateway packages/client/connection packages/host/apiproxy packages/mcp/mcp-client packages/llm/llm-deepseek packages/bundle/headless` → **865 passed / 45 文件**；`node_modules/.bin/vitest run packages/identity/data-query packages/identity/data-query-dic-be packages/identity/authenticated-principal packages/identity/authenticated-principal-data-aid` → **97 passed**；`node_modules/.bin/tsc -b packages/identity/data-query/tsconfig.json packages/identity/data-query-dic-be/tsconfig.json packages/identity/authenticated-principal/tsconfig.json packages/identity/authenticated-principal-data-aid/tsconfig.json` → exit 0。
-- dic-be：`python -m pytest -q` → **290 passed / 214 failed / 6 warnings**（失败全部在既有无关测试 version/ops_logs/dev_mode 等，未改 dic-be 代码）；`pytest tests/test_data_query_*.py` → **33 passed / 0 failed**。
+- dic-be：`python -m pytest -q` → **290 passed / 214 failed / 6 warnings**（记录当前工作树基线；未通过干净基线对照归因这些失败）；`pytest tests/test_data_query_*.py` → **33 passed / 0 failed**。
 - dic-fe：`pnpm install` 后 `node_modules/.bin/vitest run` → **261 passed / 33 文件**。
 
 **⑤ 敏感信息扫描（命令与结果）**
 - 命令：`grep -rniE "access[_-]?key|secret[_-]?key|password[=:][^ ']|LTAI|AKID|dsak|Bearer [a-zA-Z0-9]{20,}" apps/cli/config packages/identity .kiro dic-be/app/data_query dic-be/tests/test_data_query*.py --include="*.yml" --include="*.yaml" --include="*.mjs" --include="*.md" --include="*.ts" --include="*.py" | grep -viE "process\.env|os\.getenv|settings\.|config\.|getenv|\$\{|placeholder|replace|test-|fixture|_password\b|audit.*redact|键名包含"`
-- 结果：仅命中 `audit.py` 的脱敏键名清单（`"accesskey"`/`"access_key"` 等，非凭据）。`.env.example` 为空值示例。**无硬编码凭据/真实断言/生产 SQL/误写 env**。
+- 结果（精确重放）：第一阶段无过滤产出 **5 条候选**——3 条为规范/命令文本自引用（文本本身含关键词），2 条为 `dic-be/app/data_query/application/audit.py` 的脱敏键名清单条目（`access*key`/`access_key` 类，非凭据）；人工核验 5 条均非凭据/真实 JWT/生产 SQL。完整过滤管道后无凭据候选。`.env.example` 为空值示例。
 
 **⑥ 待办（评审遗留）**
 - [ ] 上述证据核验后再勾选任务 1（README 陈旧引用已随本记录提交）。
