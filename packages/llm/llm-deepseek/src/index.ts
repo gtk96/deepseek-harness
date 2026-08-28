@@ -112,6 +112,20 @@ export interface Config {
   thinking?: 'enabled' | 'disabled'
   /** Default thinking effort (default `high`); `off` disables thinking per request. */
   reasoningEffort?: 'off' | 'low' | 'high' | 'max'
+  /**
+   * When true, assistant history turns that carried no reasoning still send a
+   * placeholder `reasoning_content`, so the field is always present. Some
+   * gateways (new-api in DeepSeek thinking mode) reject turns that omit it.
+   */
+  fillReasoningPlaceholder?: boolean
+  /**
+   * When true, requests whose message sequence ends with a `tool` result get a
+   * trailing empty `user` message appended at serialization time. new-api in
+   * DeepSeek thinking mode intermittently rejects tool-result-final requests
+   * with `content[].thinking must be passed back`; a `user` continuation makes
+   * the validation deterministic.
+   */
+  toolResultContinuation?: boolean
   /** Default per-request output cap (default 256,000); a model's own cap and explicit request values win. */
   maxTokens?: number
   /** Positive context capacity used when the selected model has no exact value (default 1,000,000). */
@@ -161,6 +175,8 @@ export const Config: z<Config> = z.object({
   baseURL: z.string(),
   thinking: z.union(['enabled', 'disabled']),
   reasoningEffort: z.union(['off', 'low', 'high', 'max']),
+  fillReasoningPlaceholder: z.boolean(),
+  toolResultContinuation: z.boolean(),
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS),
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   models: z.array(catalogModel).default(DEFAULT_MODELS),
@@ -362,6 +378,8 @@ export function resolveAdapterOptions(config: Config, environment?: LaunchEnviro
     defaults: {
       thinking: config.thinking,
       reasoningEffort: config.reasoningEffort,
+      fillReasoningPlaceholder: config.fillReasoningPlaceholder,
+      toolResultContinuation: config.toolResultContinuation,
     },
     maxTokens: config.maxTokens ?? DEFAULT_MAX_TOKENS,
     defaultContextWindow: config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,

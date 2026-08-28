@@ -678,6 +678,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'dataQuery',
+    summary: 'Runtime that owns data-query provider registration, deterministic selection, and dispatch.',
+    description: 'Runtime that owns data-query provider registration, deterministic selection, and dispatch.\n\nA configured provider must be registered and available. Without a configured id, the runtime selects exactly one available provider and rejects zero or multiple candidates. Resolution occurs for every call so provider disposal and availability changes take effect without stale caching.',
+    methods: [
+      {
+        signature: 'registerProvider(provider: DataQueryProvider): () => void',
+        description: 'Register one provider for the contributing fiber\'s lifetime.',
+        parameters: [{ name: 'provider', description: 'backend implementation with a unique normalized id.' }],
+        returns: 'disposer that removes the provider; the contributing fiber also disposes it automatically.',
+        throws: ['{@link DataQueryError} with `DATA_QUERY_DUPLICATE_PROVIDER` when the id already exists.'],
+      },
+      {
+        signature: 'query(request: DataQueryRequest, context: DataQueryContext, signal?: AbortSignal): Promise<DataQueryResult>',
+        description: 'Execute one semantic query through the provider resolved at call time.',
+        parameters: [{ name: 'request', description: 'semantic query fields, never trusted identity or transport data.' }, { name: 'context', description: 'trusted Principal and turn binding obtained outside model JSON.' }, { name: 'signal', description: 'optional cancellation signal forwarded unchanged.' }],
+        returns: 'the provider\'s complete, untruncated five-field result.',
+        throws: ['{@link DataQueryError} when provider selection is missing, unavailable, or ambiguous.'],
+      },
+    ],
+  },
+  {
     key: 'directoryPicker',
     summary: 'Abstract directory-picking service.',
     description: 'Abstract directory-picking service. Subclass, implement `capability()`, and load the subclass as a plugin — it registers as `ctx.directoryPicker` (one implementation per context; loading a second throws, cordis\' standard duplicate-service behavior). The capability object must be stable for the service lifetime: consumers may capture it across calls.',
@@ -3224,6 +3245,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CredentialRef',
     declaration: 'export type CredentialRef = Branded<\'CredentialRef\'>;',
+  },
+  {
+    name: 'DataQueryContext',
+    declaration: 'export interface DataQueryContext {\n    readonly principalId: GkUserId;\n    readonly conversationId: DataQueryConversationId;\n    readonly turnId: DataQueryTurnId;\n}',
+  },
+  {
+    name: 'DataQueryConversationId',
+    declaration: 'export type DataQueryConversationId = Branded<\'DataQueryConversationId\'>;',
+  },
+  {
+    name: 'DataQueryFilter',
+    declaration: 'export interface DataQueryFilter {\n    readonly dimensionCode: string;\n    readonly operator: \'eq\' | \'in\' | \'between\' | \'gte\' | \'lte\';\n    readonly value: DataQueryValue | readonly DataQueryValue[];\n}',
+  },
+  {
+    name: 'DataQueryOrderBy',
+    declaration: 'export interface DataQueryOrderBy {\n    readonly fieldCode: string;\n    readonly direction: \'asc\' | \'desc\';\n}',
+  },
+  {
+    name: 'DataQueryProvider',
+    declaration: 'export interface DataQueryProvider {\n    readonly id: string;\n    available(): boolean;\n    query(request: DataQueryRequest, context: DataQueryContext, signal?: AbortSignal): Promise<DataQueryResult>;\n}',
+  },
+  {
+    name: 'DataQueryRequest',
+    declaration: 'export interface DataQueryRequest {\n    readonly datasetCode: string;\n    readonly metricCodes: readonly string[];\n    readonly dimensionCodes: readonly string[];\n    readonly filters?: readonly DataQueryFilter[];\n    readonly timeRange?: DataQueryTimeRange;\n    readonly orderBy?: readonly DataQueryOrderBy[];\n    readonly limit: number;\n}',
+  },
+  {
+    name: 'DataQueryResult',
+    declaration: 'export interface DataQueryResult {\n    readonly columns: readonly string[];\n    readonly rows: readonly (readonly DataQueryValue[])[];\n    readonly rowCount: number;\n    readonly complete: true;\n    readonly truncated: false;\n}',
+  },
+  {
+    name: 'DataQueryTimeRange',
+    declaration: 'export interface DataQueryTimeRange {\n    readonly dimensionCode: string;\n    readonly startInclusive: string;\n    readonly endExclusive: string;\n}',
+  },
+  {
+    name: 'DataQueryTurnId',
+    declaration: 'export type DataQueryTurnId = Branded<\'DataQueryTurnId\'>;',
+  },
+  {
+    name: 'DataQueryValue',
+    declaration: 'export type DataQueryValue = null | boolean | number | string | readonly DataQueryValue[] | {\n    readonly [key: string]: DataQueryValue;\n};',
   },
   {
     name: 'DiffCallView',

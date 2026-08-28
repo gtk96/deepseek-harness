@@ -22,6 +22,25 @@ import type {
 export interface RequestDefaults {
   thinking?: 'enabled' | 'disabled' | undefined
   reasoningEffort?: 'off' | 'low' | 'high' | 'max' | undefined
+  /**
+   * When true, every assistant history message carries a non-empty
+   * `reasoning_content`, filling a placeholder on turns the model produced no
+   * reasoning in. Some gateways (e.g. new-api in DeepSeek thinking mode) reject
+   * assistant turns that omit the reasoning field entirely; the placeholder
+   * makes the field presence deterministic while keeping the real CoT verbatim.
+   */
+  fillReasoningPlaceholder?: boolean | undefined
+  /**
+   * When true, a request whose message sequence ends with a `tool` result gets a
+   * trailing empty `user` message appended at serialization time (the harness
+   * conversation is left unchanged). new-api in DeepSeek thinking mode
+   * intermittently rejects requests whose last message is a tool result with
+   * `content[].thinking must be passed back`; a `user` turn after the tool
+   * result makes the thinking validation deterministic (observed 11/11 pass vs
+   * 1-3/5 pass without). Assistant/system messages after the tool result do not
+   * help — only a `user`-role continuation does.
+   */
+  toolResultContinuation?: boolean | undefined
 }
 
 interface ResolvedThinking {
@@ -195,8 +214,17 @@ function userContent(parts: readonly WireUserContentPart[]): string | WireUserCo
   return text.join('')
 }
 
+/**
+ * Placeholder reasoning filled by {@link serializeAssistant} when
+ * `fillReasoningPlaceholder` is on and the turn carried no reasoning. Mirrors
+ * the opencode-deepseek-thinking-fix fallback: gateways that require a
+ * non-empty reasoning field on every assistant turn validate presence, not
+ * content, so a short placeholder satisfies the check without inventing CoT.
+ */
+const REASONING_PLACEHOLDER = '(thinking omitted)'
+
 /** Serialize one assistant message (text + reasoning + tool calls). */
-function serializeAssistant(message: Message): WireMessage {
+function serializeAssistant(message: Message, fillReasoningPlaceholder = false): WireMessage {
   const text = flattenText(message.content)
   const reasoning = message.content
     .filter(block => block.type === 'reasoning')
@@ -225,8 +253,12 @@ function serializeAssistant(message: Message): WireMessage {
     // (guides/thinking_mode.mdx) requires it on tool-call turns and ignores it
     // elsewhere; a gateway re-encoding the conversation for another vendor
     // recovers that turn's upstream thinking signature by hashing this exact
-    // text, which a tool-call-free turn carries nowhere else.
-    ...reasoning.length > 0 ? { reasoning_content: reasoning } : {},
+    // text, which a tool-call-free turn carries nowhere else. With
+    // fillReasoningPlaceholder, turns without reasoning still carry the
+    // field (placeholder text) so field presence is deterministic.
+    ...fillReasoningPlaceholder
+      ? { reasoning_content: reasoning.length > 0 ? reasoning : REASONING_PLACEHOLDER }
+      : (reasoning.length > 0 ? { reasoning_content: reasoning } : {}),
     ...toolCalls.length > 0 ? { tool_calls: toolCalls } : {},
   }
 }
@@ -239,7 +271,7 @@ function serializeAssistant(message: Message): WireMessage {
  * @param messages - the harness conversation, in order.
  * @returns the wire messages; order preserved, each tool result expanded into its own entry.
  */
-export function serializeMessages(messages: Message[]): WireMessage[] {
+export function serializeMessages(messages: Message[], fillReasoningPlaceholder = false): WireMessage[] {
   const wire: WireMessage[] = []
   for (const message of messages) {
     assertTextOnly(message.content)
@@ -248,7 +280,7 @@ export function serializeMessages(messages: Message[]): WireMessage[] {
       continue
     }
     if (message.role === 'assistant') {
-      wire.push(serializeAssistant(message))
+      wire.push(serializeAssistant(message, fillReasoningPlaceholder))
       continue
     }
     // user role: tool results ride in user messages in the harness
@@ -281,6 +313,7 @@ export function serializeMessages(messages: Message[]): WireMessage[] {
 export async function serializeMessagesWithImages(
   messages: readonly Message[],
   images: ImageSerializationOptions,
+  fillReasoningPlaceholder = false,
 ): Promise<WireMessage[]> {
   assertSupportedImageRoles(messages)
   const wire: WireMessage[] = []
@@ -303,7 +336,7 @@ export async function serializeMessagesWithImages(
     }
     if (message.role === 'assistant') {
       flushToolImages()
-      wire.push(serializeAssistant(message))
+      wire.push(serializeAssistant(message, fillReasoningPlaceholder))
       continue
     }
 
@@ -333,6 +366,22 @@ export async function serializeMessagesWithImages(
   }
   flushToolImages()
   return wire
+}
+
+/**
+ * Compatibility shim for gateways (new-api in DeepSeek thinking mode) that
+ * intermittently reject a request whose last message is a `tool` result with
+ * `content[].thinking must be passed back`. Appending an empty `user` turn after
+ * the final tool result makes the thinking validation deterministic. The shim is
+ * wire-only: the harness conversation is left untouched, and it fires only when
+ * the sequence genuinely ends on a `tool` message (a trailing tool-result image
+ * user message already provides the continuation).
+ */
+function withToolResultContinuation(messages: WireMessage[], enabled: boolean | undefined): WireMessage[] {
+  if (!enabled || messages.length === 0) return messages
+  const last = messages.at(-1)
+  if (last?.role !== 'tool') return messages
+  return [...messages, { role: 'user', content: '' }]
 }
 
 /** Materialize the empty required list expected by strict OpenAI-compatible gateways. */
@@ -389,9 +438,9 @@ export function serializeRequest(
   if (options.system !== undefined) {
     messages.push({ role: 'system', content: options.system })
   }
-  messages.push(...serializeMessages(options.messages))
+  messages.push(...serializeMessages(options.messages, defaults.fillReasoningPlaceholder))
 
-  return requestWithMessages(options, messages, defaults)
+  return requestWithMessages(options, withToolResultContinuation(messages, defaults.toolResultContinuation), defaults)
 }
 
 /**
@@ -427,6 +476,6 @@ export async function serializeRequestWithImages(
   if (options.system !== undefined) {
     messages.push({ role: 'system', content: options.system })
   }
-  messages.push(...await serializeMessagesWithImages(requestMessages, images))
-  return requestWithMessages(options, messages, defaults)
+  messages.push(...await serializeMessagesWithImages(requestMessages, images, defaults.fillReasoningPlaceholder))
+  return requestWithMessages(options, withToolResultContinuation(messages, defaults.toolResultContinuation), defaults)
 }

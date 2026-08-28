@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: controlled-data-query
+resources:
+  - configmaps.yaml
+  - external-secret.yaml
+  - dsh.yaml
+  - dic-be-public.yaml
+  - dic-be-broker.yaml
+  - dic-fe.yaml
+  - ddl-job.yaml
+  - network-policies.yaml
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/part-of: controlled-data-query

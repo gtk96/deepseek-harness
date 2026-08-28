@@ -1,0 +1,13 @@
+.git
+.env
+**/.env
+**/.env.local
+**/.env.*.local
+dic-be
+dic-fe
+**/node_modules
+coverage
+website/.dist
+website/.generated
+*.tsbuildinfo
+*.log

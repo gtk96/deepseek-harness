@@ -1,22 +1,16 @@
-# 本地 data-aid 网关冒烟测试
+# 本地受控 Data Aid broker 冒烟测试
 
 [English](README.md) | 中文
 
-该 overlay 以本地 stdio MCP fixture 与仅限 loopback 的 `DataAidLoopbackTestAuthenticator` 启动一个 DSH Web profile。它是 DSH 认证路径的确定性集成冒烟测试；不是生产 DingTalk、MSE、反向代理或 MaxCompute 部署。fixture 导入仓库现有的 `dsh-mcp-client` MCP SDK，因此只能从本源码 checkout 运行。
+该 patch 以随附的封闭 `data-aid` profile 为目标，只覆盖其中已有的 DIC-BE Provider 配置行。它不能向 `web` 插入受控问数服务；profile 本身不包含 raw MCP Client、MaxCompute／Hologres MCP Server、直查工具、浏览器认证器或数据源凭据。
 
-在构建改动的 host 包之后，从 DSH 仓库根目录运行：
+本地 [`dic-be-fixture.mjs`](dic-be-fixture.mjs) 接受带非空 Principal assertion 的语义请求，并返回确定性的完整表格。加载 profile 前先启动它：
 
 ```powershell
-$env:DSH_HOME = Join-Path $env:TEMP 'dsh-data-aid-smoke'
-$env:DSH_DATA_AID_TEST_TOKEN = 'replace-with-a-random-local-test-secret'
-$env:DSH_DATA_AID_MCP_FIXTURE_PATH = (Resolve-Path 'apps/cli/config/data-aid-test/maxcompute-mcp-fixture.mjs')
-# 起一个本地假 dic-be 查询 broker（另一个终端）
 node apps/cli/config/data-aid-test/dic-be-fixture.mjs
-pnpm dsh web --patch apps/cli/config/data-aid-test/cordis.patch.yml --port 3180
+pnpm dsh --profile data-aid --patch apps/cli/config/data-aid-test/cordis.patch.yml
 ```
 
-DSH Web 绑定到本机 `127.0.0.1`。其 HTTP bridge 向本地 Provider 暴露固定内部 origin `http://dsh.internal`，Provider 还要求 `x-dsh-data-aid-test-token` 等于 `DSH_DATA_AID_TEST_TOKEN`。为 DingTalk id `014815142220899789` 发送 Base64 visitor header 以调用 `pluginInventory/list`；fixture 返回其验证过的权威行。缺失、格式错误或令牌错误的请求必须返回网关 `unauthorized` 响应。
+该命令证明随附 profile 无需数据源 bridge 即可加载。它不会把普通进程调用变成可信请求：本仓缺少通过服务认证的 DIC-BE turn ingress，因此除非测试或部署 adapter 在创建 Agent 时挂载默认 preset，并在 Agent 消息插入期间建立完整 binding，否则 `data_query` 会 fail closed。
 
-专用 `maxcompute-authority` bridge 使用 `exposeTools: false`：其 `execute_sql` 操作仅通过 `ctx.mcpClients` 对认证器可用，绝不进入模型工具目录。
-
-`data-aid` preset 只暴露 `data_query`。工具接受语义目录编码（绝不接受 SQL），并经 `dic-be` provider 派发，该 provider 为本地 HTTP fixture 签发短期 Principal 断言。只要 DSH 提供非空断言，fixture 就接受语义查询并返回两行确定性结果；缺失断言会被拒绝。这只能证明组装与 HTTP 接线；生产需要验证断言并在服务端执行真实表、列、join、谓词与行级授权的 broker。
+`examples/headless-agent/tests/fixtures/data-aid` 下的 keyless runnable 场景提供两个完整的可信 binding。其 fake broker 返回一个治理成功结果与一个确定性的策略拒绝，snapshot 记录两段真实 Agent transcript。两个 fixture 都不验证生产网络策略、真实 assertion 防重放、治理目录正确性或 MaxCompute 执行。

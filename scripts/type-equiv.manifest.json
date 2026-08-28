@@ -1361,6 +1361,51 @@
       "source": "packages/subagent/subagent/src/types.ts"
     },
     {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryFilter",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryTimeRange",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryOrderBy",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryRequest",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryConversationId",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryTurnId",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryContext",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryResult",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/data-query.md",
+      "symbol": "DataQueryProvider",
+      "source": "packages/identity/data-query/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/web.md",
       "symbol": "WebSearchRequest",
       "source": "packages/web/web/src/types.ts"

@@ -51,15 +51,16 @@ export class DataAidMseGatewayAuthenticator extends DataAidGatewayAuthenticator 
 export default DataAidMseGatewayAuthenticator
 
 /** Reject incomplete MSE deployment settings before the provider starts. */
-function validateOptions(options: DataAidMseGatewayAuthenticatorOptions): ReadonlySet<string> {
-  if (options === undefined || options === null || typeof options !== 'object') {
+function validateOptions(options: unknown): ReadonlySet<string> {
+  if (options === null || typeof options !== 'object') {
     throw new TypeError('data-aid MSE authenticator options are required')
   }
-  if (!Array.isArray(options.trustedProxyAddresses) || options.trustedProxyAddresses.length === 0) {
+  const record = options as Record<string, unknown>
+  if (!Array.isArray(record.trustedProxyAddresses) || record.trustedProxyAddresses.length === 0) {
     throw new TypeError('data-aid MSE authenticator trustedProxyAddresses must contain at least one address')
   }
   const trustedProxyAddresses = new Set<string>()
-  for (const value of options.trustedProxyAddresses) {
+  for (const value of record.trustedProxyAddresses) {
     if (typeof value !== 'string') throw new TypeError('data-aid MSE authenticator proxy address must be a string')
     const normalized = normalizeAddress(value)
     if (normalized === undefined) throw new TypeError('data-aid MSE authenticator proxy address must be an IP literal')
@@ -68,10 +69,15 @@ function validateOptions(options: DataAidMseGatewayAuthenticatorOptions): Readon
     }
     trustedProxyAddresses.add(normalized)
   }
-  if (!/^\d{8}$/u.test(options.partition?.dt ?? '')) {
+  const partition = record.partition
+  if (partition === null || typeof partition !== 'object') {
+    throw new TypeError('data-aid MSE authenticator partition is required')
+  }
+  const partitionRecord = partition as Record<string, unknown>
+  if (typeof partitionRecord.dt !== 'string' || !/^\d{8}$/u.test(partitionRecord.dt)) {
     throw new TypeError('data-aid MSE authenticator partition.dt must be YYYYMMDD')
   }
-  if (!/^\d{2}$/u.test(options.partition?.ht ?? '')) {
+  if (typeof partitionRecord.ht !== 'string' || !/^\d{2}$/u.test(partitionRecord.ht)) {
     throw new TypeError('data-aid MSE authenticator partition.ht must be HH')
   }
   return trustedProxyAddresses

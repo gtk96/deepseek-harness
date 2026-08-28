@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "environment": {
+    "name": "__REQUIRED_TEST_ENVIRONMENT__",
+    "namespace": "__REQUIRED_NAMESPACE__",
+    "browserBaseUrl": "https://example.invalid/fe/bigdata/dic/",
+    "maxCompute": {
+      "endpoint": "https://example.invalid/maxcompute",
+      "project": "__REQUIRED_PROJECT__",
+      "quota": "__REQUIRED_QUOTA__",
+      "credentialRef": "secret-manager://__REQUIRED_STORE__/__REQUIRED_REFERENCE__",
+      "jobListPermissionConfirmed": false
+    }
+  },
+  "governance": {
+    "dataset": {
+      "code": "__REQUIRED_DATASET_CODE__",
+      "name": "__REQUIRED_DATASET_NAME__",
+      "sourceRef": "__REQUIRED_PROJECT__.__REQUIRED_TABLE__",
+      "status": "published",
+      "maxRows": 100,
+      "queryTimeoutSeconds": 30,
+      "scopeRequired": true,
+      "scopeMappings": [
+        {
+          "dimension": "__REQUIRED_SCOPE_DIMENSION__",
+          "op": "eq",
+          "source": "__REQUIRED_AUTHORITY_SCOPE_FIELD__"
+        }
+      ]
+    },
+    "metrics": [
+      {
+        "code": "__REQUIRED_PUBLISHED_METRIC_1__",
+        "name": "__REQUIRED_NAME__",
+        "sourceField": "__REQUIRED_FIELD__",
+        "aggregation": "sum",
+        "status": "published",
+        "definition": "__REQUIRED_REAL_DEFINITION__"
+      },
+      {
+        "code": "__REQUIRED_PUBLISHED_METRIC_2__",
+        "name": "__REQUIRED_NAME__",
+        "sourceField": "__REQUIRED_FIELD__",
+        "aggregation": "count",
+        "status": "published",
+        "definition": "__REQUIRED_REAL_DEFINITION__"
+      },
+      {
+        "code": "__REQUIRED_DRAFT_METRIC__",
+        "name": "__REQUIRED_NAME__",
+        "sourceField": "__REQUIRED_FIELD__",
+        "aggregation": "sum",
+        "status": "draft",
+        "definition": "__REQUIRED_REAL_DEFINITION__"
+      }
+    ],
+    "dimensions": [
+      {
+        "code": "__REQUIRED_AUTHORIZED_DIMENSION_1__",
+        "name": "__REQUIRED_NAME__",
+        "sourceField": "__REQUIRED_FIELD__",
+        "dataType": "string",
+        "operators": ["eq", "in"],
+        "status": "published",
+        "definition": "__REQUIRED_REAL_DEFINITION__"
+      },
+      {
+        "code": "__REQUIRED_AUTHORIZED_DATE_DIMENSION__",
+        "name": "__REQUIRED_NAME__",
+        "sourceField": "__REQUIRED_FIELD__",
+        "dataType": "date",
+        "operators": ["eq", "between", "gte", "lte"],
+        "status": "published",
+        "definition": "__REQUIRED_REAL_DEFINITION__"
+      },
+      {
+        "code": "__REQUIRED_DENIED_DIMENSION__",
+        "name": "__REQUIRED_NAME__",
+        "sourceField": "__REQUIRED_FIELD__",
+        "dataType": "string",
+        "operators": ["eq"],
+        "status": "published",
+        "definition": "__REQUIRED_REAL_DEFINITION__"
+      }
+    ]
+  },
+  "subjects": {
+    "authorized": {
+      "userId": "__REQUIRED_AUTHORIZED_USER__",
+      "dataRoles": ["__REQUIRED_AUTHORIZED_DATA_ROLE__"],
+      "authorityProfile": {
+        "org_code": ["__REQUIRED_AUTHORIZED_SCOPE_VALUE__"]
+      }
+    },
+    "unauthorized": {
+      "userId": "__REQUIRED_UNAUTHORIZED_USER__",
+      "dataRoles": ["__REQUIRED_UNAUTHORIZED_DATA_ROLE__"],
+      "authorityProfile": {}
+    }
+  },
+  "policies": [
+    {
+      "subjectType": "user",
+      "subjectValue": "__REQUIRED_AUTHORIZED_USER__",
+      "resourceType": "dataset",
+      "resourceCode": "__REQUIRED_DATASET_CODE__",
+      "effect": "allow",
+      "status": "published",
+      "validFrom": null,
+      "expiresAt": null,
+      "createdBy": "__REQUIRED_PUBLISHER__"
+    }
+  ],
+  "baseline": {
+    "businessDate": "__REQUIRED_YYYY-MM-DD__",
+    "question": "__REQUIRED_NATURAL_LANGUAGE_QUESTION__",
+    "semanticRequest": {
+      "datasetCode": "__REQUIRED_DATASET_CODE__",
+      "metricCodes": ["__REQUIRED_PUBLISHED_METRIC_1__"],
+      "dimensionCodes": ["__REQUIRED_AUTHORIZED_DIMENSION_1__", "__REQUIRED_AUTHORIZED_DATE_DIMENSION__"],
+      "filters": [],
+      "timeRange": {
+        "dimensionCode": "__REQUIRED_AUTHORIZED_DATE_DIMENSION__",
+        "start": "__REQUIRED_YYYY-MM-DD__",
+        "end": "__REQUIRED_NEXT_YYYY-MM-DD__"
+      },
+      "orderBy": [],
+      "limit": 100
+    },
+    "benchmarkSql": "__REQUIRED_SINGLE_READ_ONLY_BENCHMARK_SQL_WITH_FIXED_DATE__",
+    "expectedResult": {
+      "columns": ["__REQUIRED_COLUMN__"],
+      "rows": [["__REQUIRED_EXPECTED_VALUE__"]],
+      "rowCount": 1
+    }
+  },
+  "rejectionCases": {
+    "unauthorizedUser": {
+      "question": "__REQUIRED_UNAUTHORIZED_QUESTION__",
+      "expectedErrorCode": "DQ_POLICY_DENIED"
+    },
+    "unpublishedMetric": {
+      "question": "__REQUIRED_DRAFT_METRIC_QUESTION__",
+      "metricCode": "__REQUIRED_DRAFT_METRIC__",
+      "expectedErrorCode": "DQ_SEMANTIC_INVALID"
+    },
+    "deniedDimension": {
+      "question": "__REQUIRED_DENIED_DIMENSION_QUESTION__",
+      "dimensionCode": "__REQUIRED_DENIED_DIMENSION__",
+      "expectedErrorCode": "DQ_POLICY_DENIED"
+    },
+    "assertionReplay": {
+      "question": "__REQUIRED_ASSERTION_REPLAY_QUESTION__",
+      "expectedErrorCode": "DQ_ASSERTION_REPLAYED"
+    }
+  },
+  "controls": {
+    "rowLimit": {
+      "procedure": "__REQUIRED_APPROVED_PROCEDURE__",
+      "rollback": "__REQUIRED_ROLLBACK__",
+      "approvedBy": "__REQUIRED_APPROVER__",
+      "expected": "MAX_100_ROWS"
+    },
+    "timeout": {
+      "procedure": "__REQUIRED_APPROVED_PROCEDURE_EXPECTING_DQ_QUERY_TIMEOUT__",
+      "rollback": "__REQUIRED_ROLLBACK__",
+      "approvedBy": "__REQUIRED_APPROVER__",
+      "expected": "DQ_QUERY_TIMEOUT"
+    },
+    "cancellation": {
+      "procedure": "__REQUIRED_APPROVED_PROCEDURE__",
+      "rollback": "__REQUIRED_ROLLBACK__",
+      "approvedBy": "__REQUIRED_APPROVER__",
+      "expected": "MAXCOMPUTE_JOB_CANCELLED"
+    },
+    "sourceFailure": {
+      "procedure": "__REQUIRED_APPROVED_PROCEDURE_EXPECTING_DQ_SOURCE_FAILED__",
+      "rollback": "__REQUIRED_ROLLBACK__",
+      "approvedBy": "__REQUIRED_APPROVER__",
+      "expected": "DQ_SOURCE_FAILED"
+    },
+    "dshFailure": {
+      "procedure": "__REQUIRED_APPROVED_PROCEDURE_EXPECTING_DQ_AGENT_FAILED__",
+      "rollback": "__REQUIRED_ROLLBACK__",
+      "approvedBy": "__REQUIRED_APPROVER__",
+      "expected": "DQ_AGENT_FAILED"
+    },
+    "resultIntegrity": {
+      "procedure": "__REQUIRED_APPROVED_PROCEDURE_EXPECTING_DQ_RESULT_INVALID__",
+      "rollback": "__REQUIRED_ROLLBACK__",
+      "approvedBy": "__REQUIRED_APPROVER__",
+      "expected": "DQ_RESULT_INVALID"
+    }
+  },
+  "evidenceDirectory": "__REQUIRED_ABSOLUTE_PATH_OUTSIDE_REPOSITORY__"
+}

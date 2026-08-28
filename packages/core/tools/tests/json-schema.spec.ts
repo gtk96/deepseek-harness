@@ -116,7 +116,7 @@ describe('the enforced raw JSON Schema subset', () => {
   })
 
   it('rejects unknown and misplaced keywords without accepted-then-ignored behavior', () => {
-    for (const keyword of ['anyOf', 'allOf', 'not', 'pattern', 'minimum', 'maxLength', '$ref']) {
+    for (const keyword of ['anyOf', 'allOf', 'not', '$ref']) {
       expect(violationsOf({ type: 'object', [keyword]: [] })[0]).toContain(`schema.${keyword} is not a supported keyword`)
     }
     expect(violationsOf({ type: 'object', items: {} }))
@@ -230,6 +230,29 @@ describe('the enforced raw JSON Schema subset', () => {
       .toEqual(['schema.default annotation must be lossless JSON data'])
   })
 
+  it('validates string, numeric, and array constraint declarations', () => {
+    expect(() => { assertSupportedJsonSchema({
+      type: 'object',
+      properties: {
+        code: { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z_]+$' },
+        count: { type: 'integer', minimum: 1, maximum: 100 },
+        values: { type: 'array', minItems: 1, maxItems: 3, uniqueItems: true },
+      },
+    }) }).not.toThrow()
+    for (const schema of [
+      { type: 'string', minLength: -1 },
+      { type: 'string', minLength: 2, maxLength: 1 },
+      { type: 'string', pattern: '[' },
+      { type: 'number', minimum: Number.NaN },
+      { type: 'number', minimum: 2, maximum: 1 },
+      { type: 'array', maxItems: 1.5 },
+      { type: 'array', uniqueItems: 'yes' },
+      { type: 'object', minItems: 1 },
+    ]) {
+      expect(violationsOf(schema).length, JSON.stringify(schema)).toBeGreaterThan(0)
+    }
+  })
+
   it('accepts lossless annotation containers from another JavaScript realm', () => {
     const schema = runInNewContext(`({
       type: 'object',
@@ -316,6 +339,42 @@ describe('validateJsonSchemaValue', () => {
     expect(validateJsonSchemaValue(schema, 'a')).toEqual([])
     expect(validateJsonSchemaValue(schema, 'c')).toEqual(['"value" must be one of ["a","b"]'])
     expect(validateJsonSchemaValue(schema, 'b')).toEqual(['"value" must be "a"'])
+  })
+
+  it('enforces string, numeric, and array constraints', () => {
+    const code = asserted({ type: 'string', minLength: 2, maxLength: 4, pattern: '^[a-z]+$' })
+    expect(validateJsonSchemaValue(code, 'ab')).toEqual([])
+    expect(validateJsonSchemaValue(code, 'a')[0]).toContain('at least 2')
+    expect(validateJsonSchemaValue(code, 'abcde')[0]).toContain('at most 4')
+    expect(validateJsonSchemaValue(code, 'A2')[0]).toContain('pattern')
+
+    const count = asserted({ type: 'integer', minimum: 1, maximum: 3 })
+    expect(validateJsonSchemaValue(count, 2)).toEqual([])
+    expect(validateJsonSchemaValue(count, 0)[0]).toContain('greater than or equal')
+    expect(validateJsonSchemaValue(count, 4)[0]).toContain('less than or equal')
+
+    const list = asserted({ type: 'array', minItems: 1, maxItems: 2, uniqueItems: true })
+    expect(validateJsonSchemaValue(list, [{ a: 1 }, { a: 2 }])).toEqual([])
+    expect(validateJsonSchemaValue(list, [])[0]).toContain('at least 1')
+    expect(validateJsonSchemaValue(list, [1, 2, 3])[0]).toContain('at most 2')
+    expect(validateJsonSchemaValue(list, [{ a: 1 }, { a: 1 }])[0]).toContain('unique')
+    expect(validateJsonSchemaValue(list, [{ a: 1, b: 2 }, { b: 2, a: 1 }])[0]).toContain('unique')
+  })
+
+  it('fails closed for cyclic uniqueItems candidates without rejecting sibling reuse', () => {
+    const schema = asserted({ type: 'array', uniqueItems: true })
+    const cyclicObject: Record<string, unknown> = {}
+    cyclicObject.self = cyclicObject
+    const cyclicArray: unknown[] = []
+    cyclicArray.push(cyclicArray)
+
+    expect(validateJsonSchemaValue(schema, [cyclicObject]))
+      .toEqual(['"value" must be a lossless JSON value'])
+    expect(validateJsonSchemaValue(schema, [cyclicArray]))
+      .toEqual(['"value" must be a lossless JSON value'])
+
+    const shared = { id: 1 }
+    expect(validateJsonSchemaValue(schema, [{ left: shared, right: shared }])).toEqual([])
   })
 
   it('validates object requiredness, nested values, and raw open defaults', () => {

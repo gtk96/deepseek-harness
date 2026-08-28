@@ -10,6 +10,7 @@ import type {
   GkUserId,
   TeamCode,
 } from '@deepseek-ai/dsh-authenticated-principal'
+import type { DataQueryConversationId, DataQueryTurnId } from '@deepseek-ai/dsh-data-query'
 
 /** Identity parsed from the trusted MSE/data-aid gateway visitor headers. */
 export interface DataAidGatewayVisitor {
@@ -112,3 +113,16 @@ export interface DataAidGatewayAuthenticatorOptions {
   /** Call the existing identity mapping and permission authority. */
   readonly resolver: DataAidPrincipalResolver
 }
+
+/** Principal and business identifiers supplied only by a trusted DSH turn-ingress adapter. */
+export interface DataAidTrustedTurnBinding {
+  /** Stable authenticated user id supplied by dic-be after service authentication. */
+  readonly principalId: GkUserId
+  /** Opaque dic-be conversation id. */
+  readonly conversationId: DataQueryConversationId
+  /** Opaque dic-be turn id. */
+  readonly turnId: DataQueryTurnId
+}
+
+/** Business ids paired with a request-local Principal by legacy authenticated transports. */
+export type DataAidTrustedTurnIds = Omit<DataAidTrustedTurnBinding, 'principalId'>

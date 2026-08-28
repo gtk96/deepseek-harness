@@ -1,0 +1,111 @@
+# Closed controlled-data-query composition. This bundle applies directly over an
+# empty profile root and deliberately does not inherit dsh-base or dsh-web-app.
+# Its sole listener is the strict, service-authenticated DIC-BE turn ingress.
+
+- insert:
+    # Minimum Agent runtime. No shell, filesystem, Web, terminal, workflow,
+    # subagent, MCP, or direct data-source capability is present in this bundle.
+    - id: llm
+      name: '@deepseek-ai/dsh-llm'
+
+    - id: session
+      name: '@deepseek-ai/dsh-session'
+
+    - id: agent
+      name: '@deepseek-ai/dsh-agent'
+
+    - id: agent-default-model
+      name: '@deepseek-ai/dsh-agent-default-model'
+      config:
+        provider: deepseek-official
+        model: deepseek-v4-flash
+
+    - id: system-prompt
+      name: '@deepseek-ai/dsh-system-prompt'
+      config:
+        persona: ''
+
+    - id: tools
+      name: '@deepseek-ai/dsh-tools'
+
+    - id: agent-loop
+      name: '@deepseek-ai/dsh-agent-loop'
+      config:
+        agents: []
+
+    - id: credentials
+      name: '@deepseek-ai/dsh-credentials-local'
+
+    # Dedicated internal service carrier only. No browser application, generic
+    # API proxy, frontend assets, or public route is mounted.
+    - id: data-aid-webserver
+      name: '@deepseek-ai/dsh-host-webserver'
+      config:
+        host: !!js process.env.DATA_AID_INGRESS_HOST ?? '127.0.0.1'
+        port: !!js Number(process.env.DATA_AID_INGRESS_PORT ?? 3081)
+
+    - id: llm-deepseek
+      name: '@deepseek-ai/dsh-llm-deepseek'
+      config:
+        # new-api DeepSeek thinking 模式:占位兜底让 reasoning_content 字段存在性确定化
+        #（真实 CoT 仍原样回传）；toolResultContinuation 修 tool 收尾请求被间歇 400
+        #（实测末尾补空 user 消息后 11/11 通过，否则 1-3/5）。
+        fillReasoningPlaceholder: true
+        toolResultContinuation: true
+
+    # The CLI patches the shipped preset root into this row. User-authored
+    # presets stay disabled so this profile cannot acquire extra tools through
+    # the Harness home.
+    - id: agent-presets
+      name: '@deepseek-ai/dsh-agent-presets'
+      config:
+        default: data-aid
+        includeUserRoot: false
+
+    # Controlled semantic query capability and its trusted turn binding.
+    - id: data-query-runtime
+      name: '@deepseek-ai/dsh-data-query'
+      config:
+        provider: dic-be
+
+    - id: data-query-dic-be
+      name: '@deepseek-ai/dsh-data-query-dic-be'
+      config:
+        path: !!js process.env.DATA_AID_QUERY_PATH
+        issuer: !!js process.env.DATA_AID_QUERY_ISSUER
+        audience: !!js process.env.DATA_AID_QUERY_AUDIENCE
+        assertionKeyRing: !!js JSON.parse(process.env.DATA_AID_QUERY_ASSERTION_KEY_RING ?? '{}')
+        assertionActiveKid: !!js process.env.DATA_AID_QUERY_ASSERTION_ACTIVE_KID
+        assertionTtlSeconds: !!js Number(process.env.DATA_AID_QUERY_ASSERTION_TTL_SECONDS ?? 30)
+        timeoutSeconds: !!js Number(process.env.DATA_AID_QUERY_TIMEOUT_SECONDS ?? 30)
+        maxRows: !!js Number(process.env.DATA_AID_QUERY_MAX_ROWS ?? 100)
+        maxResultBytes: !!js Number(process.env.DATA_AID_QUERY_MAX_RESULT_BYTES ?? 1048576)
+
+    - id: data-aid-turn-principal
+      name: '@deepseek-ai/dsh-authenticated-principal-data-aid/turn-principal'
+
+    - id: data-aid-dic-be-turn-ingress
+      name: '@deepseek-ai/dsh-authenticated-principal-data-aid/dic-be-turn-ingress'
+      config:
+        path: !!js process.env.DATA_AID_INGRESS_PATH ?? '/v1/internal/data-query/turns'
+        serviceIdentity: !!js process.env.DATA_AID_INGRESS_SERVICE_IDENTITY
+        serviceToken: !!js process.env.DATA_AID_INGRESS_SERVICE_TOKEN
+        maxBodyBytes: !!js Number(process.env.DATA_AID_INGRESS_MAX_BODY_BYTES ?? 16384)
+        maxQuestionChars: !!js Number(process.env.DATA_AID_INGRESS_MAX_QUESTION_CHARS ?? 4096)
+        maxSemanticCatalogChars: !!js Number(process.env.DATA_AID_INGRESS_MAX_SEMANTIC_CATALOG_CHARS ?? 8192)
+        maxTrackedTurns: !!js Number(process.env.DATA_AID_INGRESS_MAX_TRACKED_TURNS ?? 100000)
+        callbackURL: !!js process.env.DATA_AID_TURN_CALLBACK_URL
+        callbackServiceIdentity: !!js process.env.DATA_AID_TURN_CALLBACK_SERVICE_IDENTITY ?? 'dsh'
+        callbackServiceToken: !!js process.env.DATA_AID_TURN_CALLBACK_SERVICE_TOKEN
+        callbackTimeoutSeconds: !!js Number(process.env.DATA_AID_TURN_CALLBACK_TIMEOUT_SECONDS ?? 10)
+        callbackMaxAttempts: !!js Number(process.env.DATA_AID_TURN_CALLBACK_MAX_ATTEMPTS ?? 3)
+        callbackRetryDelayMs: !!js Number(process.env.DATA_AID_TURN_CALLBACK_RETRY_DELAY_MS ?? 250)
+        callbackMaxBodyBytes: !!js Number(process.env.DATA_AID_TURN_CALLBACK_MAX_BODY_BYTES ?? 1100000)
+        callbackMaxAnswerChars: !!js Number(process.env.DATA_AID_TURN_CALLBACK_MAX_ANSWER_CHARS ?? 16384)
+
+    # Exact health routes share the dedicated internal carrier and expose no fallback API.
+    - id: data-aid-health
+      name: '@deepseek-ai/dsh-authenticated-principal-data-aid/data-aid-health'
+      config:
+        livePath: !!js process.env.DATA_AID_HEALTH_LIVE_PATH ?? '/healthz/live'
+        readyPath: !!js process.env.DATA_AID_HEALTH_READY_PATH ?? '/healthz/ready'

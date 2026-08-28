@@ -69,6 +69,7 @@ describe('HTTP bridge abort', () => {
       url: '/api/host.pickDirectory',
       method: 'POST',
       headers: { 'content-type': 'application/json' },
+      socket: {},
     })
 
     const response = Object.assign(new EventEmitter(), {

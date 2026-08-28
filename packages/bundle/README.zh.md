@@ -8,7 +8,8 @@ Bundle 身份由 manifest 声明决定，而不是由本目录决定。领域包
 
 | 包 | 职责 | ctx key |
 |---|---|---|
-| [`base/`](base/README.zh.md) | 每个 profile 最先应用的共享 dsh 核心 | —（仅 patch） |
+| [`base/`](base/README.zh.md) | Web 与 headless profile 使用的通用 dsh 共享核心 | —（仅 patch） |
+| [`data-aid/`](data-aid/README.zh.md) | 独立于 base 与 Web 的封闭受控问数 Agent 核心 | —（仅 patch） |
 | [`web-app/`](web-app/README.zh.md) | 浏览器表层：web patch 层 + 运行时粘合插件 | 挂载多条配置行 |
 | [`headless/`](headless/README.zh.md) | 直接运行在 base 之上的一次性任务模式，不含 Host 或 Web 层 | 挂载 `headless-runner` |
 

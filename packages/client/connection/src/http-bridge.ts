@@ -84,7 +84,7 @@ export async function bridge(
     ...chunks.length > 0 ? { body: Buffer.concat(chunks) } : {},
     signal: abort.signal,
   })
-  const peerAddress = req.socket?.remoteAddress
+  const peerAddress = req.socket.remoteAddress
   if (peerAddress !== undefined) peerAddresses.set(request, peerAddress)
   const response = await apiHandler.fetch(request)
   res.writeHead(response.status, Object.fromEntries(response.headers.entries()))

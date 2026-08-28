@@ -12,14 +12,21 @@ import {
 
 describe('the unified author schema DSL', () => {
   it('compiles every value root and the author-only json node', () => {
-    expect(valueSchemaSpecToJsonSchema({ type: 'string', enum: ['a', 'b'], const: 'a' }))
-      .toEqual({ type: 'string', enum: ['a', 'b'], const: 'a' })
-    expect(valueSchemaSpecToJsonSchema({ type: 'number' })).toEqual({ type: 'number' })
-    expect(valueSchemaSpecToJsonSchema({ type: 'integer' })).toEqual({ type: 'integer' })
+    expect(valueSchemaSpecToJsonSchema({ type: 'string', enum: ['a', 'b'], const: 'a', minLength: 1, maxLength: 8, pattern: '^[a-z]+$' }))
+      .toEqual({ type: 'string', enum: ['a', 'b'], const: 'a', minLength: 1, maxLength: 8, pattern: '^[a-z]+$' })
+    expect(valueSchemaSpecToJsonSchema({ type: 'number', minimum: 0, maximum: 10 }))
+      .toEqual({ type: 'number', minimum: 0, maximum: 10 })
+    expect(valueSchemaSpecToJsonSchema({ type: 'integer', minimum: 1, maximum: 5 }))
+      .toEqual({ type: 'integer', minimum: 1, maximum: 5 })
     expect(valueSchemaSpecToJsonSchema({ type: 'boolean' })).toEqual({ type: 'boolean' })
     expect(valueSchemaSpecToJsonSchema({ type: 'null' })).toEqual({ type: 'null' })
-    expect(valueSchemaSpecToJsonSchema({ type: 'array', items: { type: 'json' } }))
-      .toEqual({ type: 'array', items: {} })
+    expect(valueSchemaSpecToJsonSchema({
+      type: 'array',
+      items: { type: 'json' },
+      minItems: 1,
+      maxItems: 3,
+      uniqueItems: true,
+    })).toEqual({ type: 'array', items: {}, minItems: 1, maxItems: 3, uniqueItems: true })
     expect(valueSchemaSpecToJsonSchema({ type: 'object', additionalProperties: false, properties: {} }))
       .toEqual({ type: 'object', additionalProperties: false, properties: {} })
     expect(valueSchemaSpecToJsonSchema({
@@ -31,6 +38,8 @@ describe('the unified author schema DSL', () => {
     })).toEqual({ description: 'anything', title: 'Any JSON', default: null, examples: [{ nested: true }] })
     expect(valueSchemaSpecToJsonSchema({ oneOf: [{ type: 'string' }, { type: 'null' }] }))
       .toEqual({ oneOf: [{ type: 'string' }, { type: 'null' }] })
+    expect(parameterSchemaSpecToJsonSchema({ value: { type: 'string' } }, { additionalProperties: false }))
+      .toEqual({ type: 'object', additionalProperties: false, properties: { value: { type: 'string' } } })
   })
 
   it('keeps the implicit parameter root open while preserving explicit object openness', () => {
@@ -63,6 +72,12 @@ describe('the unified author schema DSL', () => {
       { oneOf: [{ type: 'string' }] },
       { type: 'number', enum: ['1'] },
       { type: 'string', enum: ['a'], const: 'b' },
+      { type: 'string', minLength: 2, maxLength: 1 },
+      { type: 'string', pattern: '[' },
+      { type: 'number', minimum: Number.NaN },
+      { type: 'integer', minimum: 2, maximum: 1 },
+      { type: 'array', minItems: -1 },
+      { type: 'array', uniqueItems: 'yes' },
       { type: 'integer', const: 1.5 },
       { type: 'json', default: undefined },
       { type: 'array', items: { type: 'string', required: true } },

@@ -30,6 +30,14 @@
       "types": "./lib/types/loopback-test.d.ts",
       "default": "./lib/loopback-test.js"
     },
+    "./data-aid-health": {
+      "types": "./lib/types/data-aid-health.d.ts",
+      "default": "./lib/data-aid-health.js"
+    },
+    "./dic-be-turn-ingress": {
+      "types": "./lib/types/dic-be-turn-ingress.d.ts",
+      "default": "./lib/dic-be-turn-ingress.js"
+    },
     "./turn-principal": {
       "types": "./lib/types/turn-principal.d.ts",
       "default": "./lib/turn-principal.js"
@@ -50,6 +58,8 @@
     "lib/invariant.js",
     "lib/loopback-test.js",
     "lib/mse-gateway.js",
+    "lib/data-aid-health.js",
+    "lib/dic-be-turn-ingress.js",
     "lib/turn-principal.js",
     "lib/data-query-tool.js",
     "lib/direct-query-tools.js",
@@ -58,23 +68,52 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-agent-default-model": "workspace:^",
+    "@deepseek-ai/dsh-agent-presets": "workspace:^",
     "@deepseek-ai/dsh-authenticated-principal": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
     "@deepseek-ai/dsh-data-query": "workspace:^",
+    "@deepseek-ai/dsh-host-webserver": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-mcp-client": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-agent-default-model": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-agent-presets": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-connection": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-host-webserver": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-agent-default-model": "workspace:^",
+    "@deepseek-ai/dsh-agent-presets": "workspace:^",
+    "@deepseek-ai/dsh-app-boot": "workspace:^",
     "@deepseek-ai/dsh-authenticated-principal": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
     "@deepseek-ai/dsh-data-query": "workspace:^",
+    "@deepseek-ai/dsh-data-query-dic-be": "workspace:^",
+    "@deepseek-ai/dsh-host-webserver": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-loader-smoke": "workspace:^",
     "@deepseek-ai/dsh-mcp-client": "workspace:^",
+    "@deepseek-ai/dsh-persona": "workspace:^",
+    "@deepseek-ai/dsh-scope": "workspace:^",
+    "@deepseek-ai/dsh-session": "workspace:^",
+    "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }

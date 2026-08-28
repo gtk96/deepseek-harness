@@ -1,22 +1,16 @@
-# Local data-aid Gateway smoke test
+# Local controlled Data Aid broker smoke
 
 English | [中文](README.zh.md)
 
-This overlay starts a DSH Web profile with a local stdio MCP fixture and the loopback-only `DataAidLoopbackTestAuthenticator`. It is a deterministic integration smoke test for the DSH authentication path; it is not a production DingTalk, MSE, reverse-proxy, or MaxCompute deployment. The fixture imports the repository's existing `dsh-mcp-client` MCP SDK and therefore runs only from this source checkout.
+This patch targets the shipped closed `data-aid` profile and overrides only its existing DIC-BE Provider row. It cannot insert controlled-query services into `web`; the profile itself contains no raw MCP Client, MaxCompute/Hologres MCP Server, direct query tool, browser authenticator, or data-source credential.
 
-Run from the DSH repository root after building the changed host packages:
+The local [`dic-be-fixture.mjs`](dic-be-fixture.mjs) accepts a semantic query carrying a non-empty Principal assertion and returns a deterministic complete table. Start it before loading the profile:
 
 ```powershell
-$env:DSH_HOME = Join-Path $env:TEMP 'dsh-data-aid-smoke'
-$env:DSH_DATA_AID_TEST_TOKEN = 'replace-with-a-random-local-test-secret'
-$env:DSH_DATA_AID_MCP_FIXTURE_PATH = (Resolve-Path 'apps/cli/config/data-aid-test/maxcompute-mcp-fixture.mjs')
-# 起一个本地假 dic-be 查询 broker（另一个终端）
 node apps/cli/config/data-aid-test/dic-be-fixture.mjs
-pnpm dsh web --patch apps/cli/config/data-aid-test/cordis.patch.yml --port 3180
+pnpm dsh --profile data-aid --patch apps/cli/config/data-aid-test/cordis.patch.yml
 ```
 
-DSH Web binds locally to `127.0.0.1`. Its HTTP bridge exposes the fixed internal `http://dsh.internal` request origin to the local provider, which also requires `x-dsh-data-aid-test-token` to equal `DSH_DATA_AID_TEST_TOKEN`. Send a Base64 visitor header for DingTalk id `014815142220899789` to call `pluginInventory/list`; the fixture returns its verified authority row. Missing, malformed, or wrong-token requests must return the Gateway `unauthorized` response.
+This command proves that the shipped profile loads without a data-source bridge. It does not make an ordinary process invocation trusted: this repository has no service-authenticated DIC-BE turn ingress, so `data_query` fails closed unless a test or deployment adapter mounts the default preset during Agent creation and establishes the complete binding during Agent message insertion.
 
-The dedicated `maxcompute-authority` bridge uses `exposeTools: false`: its `execute_sql` operation is available only through `ctx.mcpClients` to the authenticator and never appears in the model tool catalog.
-
-The `data-aid` preset exposes only `data_query`. The tool accepts semantic catalog codes (never SQL) and dispatches through the `dic-be` provider, which signs a short-lived Principal assertion for the local HTTP fixture. The fixture accepts a semantic query whenever DSH supplies a non-empty assertion and returns two deterministic rows; it rejects a missing assertion. This proves composition and HTTP wiring only; production requires a broker that verifies the assertion and enforces real table, column, join, predicate, and row authorization server-side.
+The keyless runnable scenario under `examples/headless-agent/tests/fixtures/data-aid` supplies two complete trusted bindings. Its fake broker returns one governed success and one deterministic policy denial, and the snapshot records both real Agent transcripts. Neither fixture verifies production network policy, real assertion replay, governed catalog correctness, or MaxCompute execution.

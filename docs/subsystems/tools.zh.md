@@ -405,7 +405,7 @@ type PostToolDecision =
 
 ## 已强制执行的原始 JSON Schema 子集
 
-subagent、工作流、MCP 和动态注册提供的原始 schema 使用作者侧 DSL 在协议层的对应表示。`assertSupportedJsonSchema()` 接受任意 JSON 根，`validateJsonSchemaValue()` 强制执行该 schema，`JsonSchemaError` 则报告每条不受支持或格式错误的 schema 路径。仅含注解的空节点表示不受约束的无损 JSON。`oneOf` 至少要求两个分支，且一个值必须恰好匹配其中一个。仍要求对象根的消费方调用 `assertObjectJsonSchema()` 并携带 `ObjectJsonSchema`；这样，subagent/工作流中由调用方定义的结构化输出可以继续以对象为根，而不会限制共享词汇。
+subagent、工作流、MCP 和动态注册提供的原始 schema 使用作者侧 DSL 在协议层的对应表示。`assertSupportedJsonSchema()` 接受任意 JSON 根，`validateJsonSchemaValue()` 强制执行该 schema，`JsonSchemaError` 则报告每条不受支持或格式错误的 schema 路径。该子集强制执行对象属性／必填／开放性、数组 item／数量／结构唯一性、字符串 Unicode 码点长度与 ECMAScript Unicode pattern、数值闭区间及标量 literal。仅含注解的空节点表示不受约束的无损 JSON。`oneOf` 至少要求两个分支，且一个值必须恰好匹配其中一个。仍要求对象根的消费方调用 `assertObjectJsonSchema()` 并携带 `ObjectJsonSchema`；这样，subagent/工作流中由调用方定义的结构化输出可以继续以对象为根，而不会限制共享词汇。
 
 ```ts type-equiv
 /** Scalar JSON values supported by `enum` and `const`. */
@@ -436,6 +436,22 @@ interface JsonSchemaNode {
   additionalProperties?: boolean
   /** Item schema (`type: 'array'` only); absent accepts any JSON item. */
   items?: JsonSchemaNode
+  /** Minimum array length (`type: 'array'` only). */
+  minItems?: number
+  /** Maximum array length (`type: 'array'` only). */
+  maxItems?: number
+  /** Whether array members must be structurally distinct (`type: 'array'` only). */
+  uniqueItems?: boolean
+  /** Minimum string code-point length (`type: 'string'` only). */
+  minLength?: number
+  /** Maximum string code-point length (`type: 'string'` only). */
+  maxLength?: number
+  /** ECMAScript Unicode regular expression (`type: 'string'` only). */
+  pattern?: string
+  /** Inclusive numeric lower bound (`type: 'number' | 'integer'` only). */
+  minimum?: number
+  /** Inclusive numeric upper bound (`type: 'number' | 'integer'` only). */
+  maximum?: number
   /** Allowed values for a scalar node. */
   enum?: JsonSchemaScalar[]
   /** The single allowed value for a scalar node. */

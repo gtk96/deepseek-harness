@@ -7,7 +7,7 @@
 // tabular result. It does not verify assertion signatures or enforce
 // authorization — it only proves composition and HTTP wiring.
 //
-// Run separately before `pnpm dsh web`:
+// Run separately before `pnpm dsh --profile data-aid --patch apps/cli/config/data-aid-test/cordis.patch.yml`:
 //   node apps/cli/config/data-aid-test/dic-be-fixture.mjs
 //
 // Binds to 127.0.0.1:3901 unless DIC_BE_FIXTURE_PORT is set.
@@ -32,13 +32,11 @@ createServer((request, response) => {
   request.on('end', () => {
     response.writeHead(200, { 'content-type': 'application/json' })
     response.end(JSON.stringify({
-      success: true,
-      complete: true,
-      truncated: false,
-      rowCount: 2,
-      rowsReturned: 2,
       columns: ['team_code', 'order_count'],
       rows: [['1001', 12], ['1002', 8]],
+      rowCount: 2,
+      complete: true,
+      truncated: false,
     }))
   })
 }).listen(port, '127.0.0.1', () => {

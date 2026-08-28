@@ -1,0 +1,169 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: broker-ingress-from-dsh
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dic-be-broker}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: dsh}
+      ports:
+        - {protocol: TCP, port: 8000}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dsh-ingress-from-public
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dsh}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: dic-be-public}
+      ports:
+        - {protocol: TCP, port: 3081}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: public-ingress-from-controller
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dic-be-public}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+          podSelector:
+            matchLabels: {app.kubernetes.io/component: controller}
+      ports:
+        - {protocol: TCP, port: 8000}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-ingress-from-controller
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dic-fe}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+          podSelector:
+            matchLabels: {app.kubernetes.io/component: controller}
+      ports:
+        - {protocol: TCP, port: 8080}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: public-egress
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dic-be-public}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: dsh}
+      ports:
+        - {protocol: TCP, port: 3081}
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: data-platform}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: tidb}
+      ports:
+        - {protocol: TCP, port: 4000}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dsh-egress
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dsh}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: dic-be-broker}
+      ports:
+        - {protocol: TCP, port: 8000}
+    - to:
+        - ipBlock: {cidr: 0.0.0.0/0}
+      ports:
+        - {protocol: TCP, port: 443}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: broker-egress
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dic-be-broker}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: data-platform}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: tidb}
+      ports:
+        - {protocol: TCP, port: 4000}
+    - to:
+        - ipBlock: {cidr: 0.0.0.0/0}
+      ports:
+        - {protocol: TCP, port: 443}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ddl-egress
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: dic-be-ddl}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: data-platform}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: tidb}
+      ports:
+        - {protocol: TCP, port: 4000}

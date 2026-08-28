@@ -348,6 +348,74 @@ export interface Config {
 
 Source: [`packages/attachment/attachment-local/src/index.ts:51`](../packages/attachment/attachment-local/src/index.ts)
 
+<a id="deepseek-aidsh-authenticated-principal-data-aid"></a>
+
+## `@deepseek-ai/dsh-authenticated-principal-data-aid`
+
+```ts config-catalog
+/** Required hooks for the data-aid Principal provider. */
+export interface DataAidGatewayAuthenticatorOptions {
+  /** Verify the network/proxy boundary before reading identity headers. */
+  readonly verifyGatewayRequest: DataAidGatewayVerifier
+  /** Call the existing identity mapping and permission authority. */
+  readonly resolver: DataAidPrincipalResolver
+}
+
+/** Deployment-owned proof that the Fetch request came through the trusted gateway. */
+export type DataAidGatewayVerifier = (
+  request: Request,
+  signal: AbortSignal,
+) => boolean | Promise<boolean>
+
+/** Resolver seam for the existing data-aid identity and authority SQL/service. */
+export interface DataAidPrincipalResolver {
+  /**
+   * Resolve the complete existing data-aid permission result.
+   * @param input - trusted visitor plus transport-local request metadata.
+   * @returns resolved facts, or `undefined` when mapping/authority is unavailable.
+   */
+  resolve(input: DataAidPrincipalResolutionInput): DataAidPrincipalResolution | undefined | Promise<DataAidPrincipalResolution | undefined>
+}
+
+/** Input supplied to the deployment-owned resolver without copying wire arguments. */
+export interface DataAidPrincipalResolutionInput {
+  /** Parsed gateway identity. */
+  readonly visitor: DataAidGatewayVisitor
+  /** Original Fetch request, available only to the provider/resolver boundary. */
+  readonly request: Request
+  /** Request cancellation signal. */
+  readonly signal: AbortSignal
+}
+
+/** Permission and mapped identity facts returned by the existing data-aid authority. */
+export interface DataAidPrincipalResolution {
+  /** Existing mapping result `gk_userid`. */
+  readonly gkUserId: GkUserId
+  /** Existing mapping result `gimp_staff_id`. */
+  readonly gimpStaffId: GimpStaffId
+  /** Existing `data_role` value. */
+  readonly dataRole: DataRole
+  /** Existing `team_codes` values. */
+  readonly teamCodes: readonly TeamCode[]
+  /** Existing `data_org_code` values. */
+  readonly dataOrgCodes: readonly DataOrgCode[]
+  /** Optional opaque scope returned by the deployment authority. */
+  readonly authorizedScope?: AuthenticatedPrincipalScope
+}
+
+/** Identity parsed from the trusted MSE/data-aid gateway visitor headers. */
+export interface DataAidGatewayVisitor {
+  /** Decoded `gk-service-user.id`, exposed to DSH as `ddUserId`. */
+  readonly ddUserId: DdUserId
+  /** Optional decoded `gk-service-app.clientId`. */
+  readonly clientId?: DataAidClientId
+}
+```
+
+Depends on: [`AuthenticatedPrincipalScope`](../packages/identity/authenticated-principal/src/index.ts) · [`DataAidClientId`](../packages/identity/authenticated-principal/src/index.ts) · [`DataOrgCode`](../packages/identity/authenticated-principal/src/index.ts) · [`DataRole`](../packages/identity/authenticated-principal/src/index.ts) · [`DdUserId`](../packages/identity/authenticated-principal/src/index.ts) · [`GimpStaffId`](../packages/identity/authenticated-principal/src/index.ts) · [`GkUserId`](../packages/identity/authenticated-principal/src/index.ts) · [`TeamCode`](../packages/identity/authenticated-principal/src/index.ts)
+
+Source: [`packages/identity/authenticated-principal-data-aid/src/types.ts:110`](../packages/identity/authenticated-principal-data-aid/src/types.ts)
+
 <a id="deepseek-aidsh-bash-local"></a>
 
 ## `@deepseek-ai/dsh-bash-local`
@@ -418,7 +486,7 @@ export interface ConnectionConfig {
 }
 ```
 
-Source: [`packages/client/connection/src/index.ts:50`](../packages/client/connection/src/index.ts)
+Source: [`packages/client/connection/src/index.ts:52`](../packages/client/connection/src/index.ts)
 
 <a id="deepseek-aidsh-client-hmr"></a>
 
@@ -574,6 +642,60 @@ export interface Config {
 ```
 
 Source: [`packages/credentials/credentials-local/src/index.ts:64`](../packages/credentials/credentials-local/src/index.ts)
+
+<a id="deepseek-aidsh-data-query"></a>
+
+## `@deepseek-ai/dsh-data-query`
+
+```ts config-catalog
+/** Provider-selection config for the data-query runtime. */
+export interface Config {
+  /** Explicit provider id; omitted auto-selects only when exactly one available provider exists. */
+  readonly provider?: string
+}
+```
+
+Source: [`packages/identity/data-query/src/index.ts:47`](../packages/identity/data-query/src/index.ts)
+
+<a id="deepseek-aidsh-data-query-dic-be"></a>
+
+## `@deepseek-ai/dsh-data-query-dic-be`
+
+Requires: `dataQuery`
+
+```ts config-catalog
+/** Required DIC-BE assertion, deadline, and result-limit configuration. */
+export interface Config extends Omit<DicBeDataQueryProviderOptions, 'baseURL'> {
+  /** Explicit endpoint override; otherwise `DATA_AID_QUERY_BASE_URL` is read from the launch environment snapshot. */
+  readonly baseURL?: string
+}
+
+/** Complete validated provider options. */
+export interface DicBeDataQueryProviderOptions {
+  /** DIC-BE HTTP origin or base path. */
+  readonly baseURL: string
+  /** Absolute URL path below `baseURL` receiving semantic queries. */
+  readonly path: string
+  /** JWT assertion issuer. */
+  readonly issuer: string
+  /** JWT assertion audience. */
+  readonly audience: string
+  /** Shared HS256 keys indexed by JWT `kid`; retained keys support coordinated rotation. */
+  readonly assertionKeyRing: Readonly<Record<string, string>>
+  /** Key id used to sign new assertions. */
+  readonly assertionActiveKid: string
+  /** Assertion lifetime in whole seconds, at most 60. */
+  readonly assertionTtlSeconds: number
+  /** Complete request deadline in seconds, at most 30. */
+  readonly timeoutSeconds: number
+  /** Maximum complete result rows accepted from DIC-BE, at most 100. */
+  readonly maxRows: number
+  /** Maximum UTF-8 bytes in both the HTTP JSON document and normalized result. */
+  readonly maxResultBytes: number
+}
+```
+
+Source: [`packages/identity/data-query-dic-be/src/index.ts:29`](../packages/identity/data-query-dic-be/src/index.ts)
 
 <a id="deepseek-aidsh-e2b"></a>
 
@@ -1370,7 +1492,7 @@ Source: [`packages/lsp/lsp-stdio/src/index.ts:82`](../packages/lsp/lsp-stdio/src
 
 ## `@deepseek-ai/dsh-mcp-client`
 
-Requires: `tools`
+Requires: `tools` · `mcpClients`
 
 ```ts config-catalog
 /** Configuration for one stdio or Streamable HTTP MCP server. */
@@ -1396,6 +1518,8 @@ export interface StdioConfig {
   cwd: string
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /** Whether this bridge publishes discovered tools to `ctx.tools`. */
+  exposeTools?: boolean
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -1418,6 +1542,8 @@ export interface StreamableHttpConfig {
   headers: Record<string, string>
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /** Whether this bridge publishes discovered tools to `ctx.tools`. */
+  exposeTools?: boolean
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -1437,7 +1563,7 @@ export interface ReconnectConfig {
 }
 ```
 
-Source: [`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
+Source: [`packages/mcp/mcp-client/src/index.ts:104`](../packages/mcp/mcp-client/src/index.ts)
 
 <a id="deepseek-aidsh-message-feedback"></a>
 
@@ -2989,7 +3115,7 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'code' | 'both'
 ```
 
-Source: [`packages/core/tools/src/index.ts:654`](../packages/core/tools/src/index.ts)
+Source: [`packages/core/tools/src/index.ts:655`](../packages/core/tools/src/index.ts)
 
 <a id="deepseek-aidsh-typert-loader"></a>
 
@@ -3298,6 +3424,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 Abstract service classes — a deployment loads a concrete implementation package instead ([capability seams](../.agents/notes/implemented/architecture/2026-06-13-capability-seams.md)).
 
 - `@deepseek-ai/dsh-attachment` — abstract `AttachmentStore` ([`packages/attachment/attachment/src/index.ts`](../packages/attachment/attachment/src/index.ts))
+- `@deepseek-ai/dsh-authenticated-principal` — abstract `AuthenticatedPrincipalService` ([`packages/identity/authenticated-principal/src/index.ts`](../packages/identity/authenticated-principal/src/index.ts))
 - `@deepseek-ai/dsh-code-runtime` — abstract `CodeRuntime` ([`packages/code-runtime/code-runtime/src/index.ts`](../packages/code-runtime/code-runtime/src/index.ts))
 - `@deepseek-ai/dsh-compaction` — abstract `CompactionEngine` ([`packages/compaction/compaction/src/index.ts`](../packages/compaction/compaction/src/index.ts))
 - `@deepseek-ai/dsh-credentials` — abstract `CredentialProvider` ([`packages/credentials/credentials/src/index.ts`](../packages/credentials/credentials/src/index.ts))
@@ -3331,6 +3458,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@deepseek-ai/dsh-client-web` ([`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts))
 - `@deepseek-ai/dsh-cmdline` ([`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts))
 - `@deepseek-ai/dsh-code-runtime-python` ([`packages/code-runtime/code-runtime-python/src/index.ts`](../packages/code-runtime/code-runtime-python/src/index.ts))
+- `@deepseek-ai/dsh-data-aid` ([`packages/bundle/data-aid/src/index.ts`](../packages/bundle/data-aid/src/index.ts))
 - `@deepseek-ai/dsh-home-paths` ([`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts))
 - `@deepseek-ai/dsh-hook-protocol` ([`packages/hooks/hook-protocol/src/index.ts`](../packages/hooks/hook-protocol/src/index.ts))
 - `@deepseek-ai/dsh-launch-environment` ([`packages/util/launch-environment/src/index.ts`](../packages/util/launch-environment/src/index.ts))

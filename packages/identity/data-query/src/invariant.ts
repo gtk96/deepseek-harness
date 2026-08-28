@@ -10,7 +10,10 @@ export const name = 'data-query-invariant'
 /** Service required before the companion can reserve package ownership. */
 export const inject = ['invariants']
 
-/** No runtime invariant: provider state is private and every dispatch resolves the configured provider directly. */
+/**
+ * No runtime invariant: provider registrations are private effects with no independent event or
+ * projection; each query reads the authoritative map and applies selection before dispatch.
+ */
 const install: InvariantInstaller = () => {}
 
 /**

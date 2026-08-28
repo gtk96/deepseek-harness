@@ -56,17 +56,23 @@ export class DataAidLoopbackTestAuthenticator extends DataAidGatewayAuthenticato
 export default DataAidLoopbackTestAuthenticator
 
 /** Reject an incomplete test configuration before the Web Gateway starts. */
-function validateOptions(options: DataAidLoopbackTestAuthenticatorOptions): void {
-  if (options === undefined || options === null || typeof options !== 'object') {
+function validateOptions(options: unknown): void {
+  if (options === null || typeof options !== 'object') {
     throw new TypeError('data-aid loopback test authenticator options are required')
   }
-  if (typeof options.testToken !== 'string' || options.testToken.length < 16) {
+  const record = options as Record<string, unknown>
+  if (typeof record.testToken !== 'string' || record.testToken.length < 16) {
     throw new TypeError('data-aid loopback test authenticator testToken must contain at least 16 characters')
   }
-  if (!/^\d{8}$/u.test(options.partition?.dt ?? '')) {
+  const partition = record.partition
+  if (partition === null || typeof partition !== 'object') {
+    throw new TypeError('data-aid loopback test authenticator partition is required')
+  }
+  const partitionRecord = partition as Record<string, unknown>
+  if (typeof partitionRecord.dt !== 'string' || !/^\d{8}$/u.test(partitionRecord.dt)) {
     throw new TypeError('data-aid loopback test authenticator partition.dt must be YYYYMMDD')
   }
-  if (!/^\d{2}$/u.test(options.partition?.ht ?? '')) {
+  if (typeof partitionRecord.ht !== 'string' || !/^\d{2}$/u.test(partitionRecord.ht)) {
     throw new TypeError('data-aid loopback test authenticator partition.ht must be HH')
   }
 }

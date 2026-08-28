@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dic-be-ddl
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dic-be-ddl
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: ddl
+          image: registry.example.invalid/dataworks/dic-be@sha256:${DIC_BE_IMAGE_DIGEST}
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.core.init_db"]
+          env:
+            - {name: DSH_TURN_WORKER_ENABLED, value: "false"}
+            - {name: DATA_QUERY_MAXCOMPUTE_ENABLED, value: "false"}
+            - name: TIDB_PASSWORD
+              valueFrom: {secretKeyRef: {name: dic-be-ddl-runtime, key: TIDB_PASSWORD}}
+          envFrom:
+            - configMapRef: {name: dic-be-database-config}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}

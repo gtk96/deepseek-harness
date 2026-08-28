@@ -655,6 +655,11 @@
         "@deepseek-ai/.+"
       ]
     },
+    "packages/bundle/data-aid": {
+      "ignoreDependencies": [
+        "@deepseek-ai/.+"
+      ]
+    },
     "packages/bundle/headless": {
       "ignoreDependencies": [
         "@deepseek-ai/dsh-code-runtime-worker-thread"

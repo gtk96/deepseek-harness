@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/identity/data-query-dic-be/README.md
-README.md: 13d8dcafc0e4be2c5fc84eff6c5acfdda45fd720
-README.zh.md: d851b96ba1df776f8591aca6768bfe7e631acc5b
+README.md: 2d4dc18245fd739fa4bff474832ac31c1037c40b
+README.zh.md: 006a1542981e55e5f4f1ffb466045f45943acf49

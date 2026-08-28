@@ -1,67 +1,16 @@
-# Local-only data-aid Gateway smoke-test overlay.
-# It mounts a dedicated raw MaxCompute MCP bridge which is intentionally absent
-# from ctx.tools, then authenticates only 127.0.0.1 requests holding a transient
-# test secret. Never use this overlay for an MSE, reverse-proxy, or public host.
+# Local controlled Data Aid Query Broker smoke patch.
+# Apply only to `dsh --profile data-aid`; it overrides existing controlled rows
+# and cannot create a query capability in another profile.
 
-- id: agent-presets
+- id: data-query-dic-be
   config:
-    default: data-aid
-
-- insert:
-    - id: mcp-clients
-      name: '@deepseek-ai/dsh-mcp-client/mcp-clients'
-
-    - id: mcp-maxcompute-authority-fixture
-      name: '@deepseek-ai/dsh-mcp-client'
-      config:
-        serverName: maxcompute-authority
-        transport: stdio
-        command: !!js process.execPath
-        args:
-          - !!js process.env.DSH_DATA_AID_MCP_FIXTURE_PATH
-        env: {}
-        cwd: ''
-        toolCallTimeoutMs: 15000
-        exposeTools: false
-        failOnStartupError: true
-        reconnect:
-          enabled: false
-          initialDelayMs: 500
-          maxDelayMs: 500
-          maxAttempts: 1
-
-    # Semantic data-query capability: dispatches through the dic-be provider
-    # to the local HTTP fixture (see dic-be-fixture.mjs).
-    - id: data-query-runtime
-      name: '@deepseek-ai/dsh-data-query'
-      config:
-        provider: dic-be
-
-    - id: data-query-dic-be
-      name: '@deepseek-ai/dsh-data-query-dic-be'
-      config:
-        baseURL: !!js process.env.DATA_AID_QUERY_BASE_URL ?? 'http://127.0.0.1:3901'
-        path: !!js process.env.DATA_AID_QUERY_PATH ?? '/query'
-        issuer: dsh-test
-        audience: dic-be-test
-        assertionSecret: !!js process.env.DATA_AID_QUERY_ASSERTION_SECRET ?? 'local-test-assertion-secret'
-        assertionTtlSeconds: 30
-        timeoutSeconds: !!js Number(process.env.DATA_AID_QUERY_TIMEOUT_SECONDS ?? 15)
-        maxRows: !!js Number(process.env.DATA_AID_QUERY_MAX_ROWS ?? 2)
-        maxResultChars: !!js Number(process.env.DATA_AID_QUERY_MAX_RESULT_CHARS ?? 4096)
-
-    - id: data-aid-turn-principal
-      name: '@deepseek-ai/dsh-authenticated-principal-data-aid/turn-principal'
-
-    - id: authenticated-principal
-      name: '@deepseek-ai/dsh-authenticated-principal-data-aid/loopback-test'
-      config:
-        testToken: !!js process.env.DSH_DATA_AID_TEST_TOKEN
-        partition:
-          dt: '20260819'
-          ht: '14'
-        serverName: maxcompute-authority
-        toolName: execute_sql
-        project: giikin
-        maxCU: 10
-        timeoutSeconds: 15
+    baseURL: !!js process.env.DATA_AID_QUERY_BASE_URL ?? 'http://127.0.0.1:3901'
+    path: !!js process.env.DATA_AID_QUERY_PATH ?? '/query'
+    issuer: dsh-test
+    audience: dic-be-test
+    assertionKeyRing: !!js JSON.parse(process.env.DATA_AID_QUERY_ASSERTION_KEY_RING ?? '{"local-active":"local-test-assertion-secret-32-bytes-minimum"}')
+    assertionActiveKid: !!js process.env.DATA_AID_QUERY_ASSERTION_ACTIVE_KID ?? 'local-active'
+    assertionTtlSeconds: 30
+    timeoutSeconds: !!js Number(process.env.DATA_AID_QUERY_TIMEOUT_SECONDS ?? 15)
+    maxRows: !!js Number(process.env.DATA_AID_QUERY_MAX_ROWS ?? 2)
+    maxResultBytes: !!js Number(process.env.DATA_AID_QUERY_MAX_RESULT_BYTES ?? 4096)

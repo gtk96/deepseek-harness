@@ -21,6 +21,9 @@
       "path": "../data-query"
     },
     {
+      "path": "../../util/launch-environment"
+    },
+    {
       "path": "../../util/timeout"
     },
     {

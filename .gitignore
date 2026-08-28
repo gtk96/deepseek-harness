@@ -42,3 +42,12 @@ worktrees/
 # 数智中心仓库是独立 git 仓库，仅在本工作区联合开发，不进入 DSH 提交
 /dic-be/
 /dic-fe/
+
+
+# Local Kiro state and generated runtime assembly directories
+/.kiro/settings/
+/.tmp-*/
+
+# Windows redirect artifact at repo root (81 KB) and root-level python bytecode
+/NUL
+/__pycache__/

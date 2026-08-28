@@ -4,7 +4,6 @@ import { Context } from '@deepseek-ai/cordis'
 import type { McpToolCallRequest } from '@deepseek-ai/dsh-mcp-client/mcp-clients'
 import {
   PrincipalAuthenticationError,
-  type AuthenticatedPrincipal,
 } from '@deepseek-ai/dsh-authenticated-principal'
 import {
   buildDataAidAuthoritySql,
@@ -203,8 +202,8 @@ describe('DataAidGatewayAuthenticator', () => {
     expect(inputs[0]).toMatchObject({ visitor: { ddUserId: 'dd-100', clientId: '问数-web' } })
     expect(inputs[0]?.request).toBe(request)
     expect(inputs[0]?.signal).toBe(signal)
-    expect((result as AuthenticatedPrincipal).teamCodes).not.toBe(teams)
-    expect((result as AuthenticatedPrincipal).dataOrgCodes).not.toBe(orgs)
+    expect(result.teamCodes).not.toBe(teams)
+    expect(result.dataOrgCodes).not.toBe(orgs)
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.teamCodes)).toBe(true)
     expect(Object.isFrozen(result.dataOrgCodes)).toBe(true)
@@ -493,7 +492,7 @@ describe('MaxCompute MCP authority query', () => {
           },
         }
       },
-    } as never, options)
+    }, options)
 
     await expect(query('SELECT authority', signal)).resolves.toEqual(rows)
     expect(calls).toEqual([{
@@ -519,8 +518,8 @@ describe('MaxCompute MCP authority query', () => {
     { structuredContent: { success: true, truncated: false, rowCount: 1, rowsReturned: 1, data: null } },
   ])('rejects incomplete or unstructured MCP result %#', async (result) => {
     const query = createDataAidMaxComputeMcpQuery({
-      call: async () => result as never,
-    } as never, options)
+      call: async () => result as unknown as never,
+    }, options)
     await expect(query('SELECT authority', new AbortController().signal)).rejects.toThrow('data-aid MaxCompute MCP query')
   })
 
@@ -532,7 +531,7 @@ describe('MaxCompute MCP authority query', () => {
     { ...options, maxCU: 0 },
     { ...options, timeoutSeconds: 1.5 },
   ])('rejects invalid deployment options %#', (invalid) => {
-    expect(() => createDataAidMaxComputeMcpQuery({ call: async () => ({}) } as never, invalid as never))
+    expect(() => createDataAidMaxComputeMcpQuery({ call: async () => ({}) }, invalid as never))
       .toThrow('data-aid MaxCompute MCP query')
   })
 })

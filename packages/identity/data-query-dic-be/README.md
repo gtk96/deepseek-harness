@@ -2,24 +2,25 @@
 
 English | [中文](README.zh.md)
 
-This package is the credentialed DIC-BE HTTP Provider for `ctx.dataQuery`. It uses native `fetch` with `POST`, rejects every redirect before following it, applies one cancellation/deadline signal to the request and response body, and accepts only complete bounded JSON tables.
+This package is the credentialed DIC-BE HTTP Provider for `ctx.dataQuery`. It sends one fixed-path `POST` with native `fetch`, rejects redirects, shares cancellation and deadline with response-body reads, and accepts only complete bounded JSON tables. A DIC-BE business rejection is accepted only as the exact unified `{code:200,bizCode:"DQ_*",msg,data:{}}` envelope; the Provider preserves only `bizCode` as a `DataQueryError` code and never exposes the broker message or data.
 
 ## Configuration
 
-`baseURL` and absolute `path` select the fixed DIC-BE endpoint. `issuer`, `audience`, `assertionSecret`, and `assertionTtlSeconds` configure a short-lived HS256 JWT carried only in `x-dsh-principal-assertion`. `timeoutSeconds`, `maxRows`, and `maxResultChars` bound the complete operation and response.
+An explicit `baseURL`, or `DATA_AID_QUERY_BASE_URL` from the launcher-owned environment snapshot when it is omitted, and absolute `path` select the fixed endpoint. Direct `DicBeDataQueryProvider` construction always requires the resolved `baseURL`. `issuer`, `audience`, `assertionKeyRing`, `assertionActiveKid`, and `assertionTtlSeconds` configure HS256 assertions. The key ring supports overlap during rotation; new assertions use the active `kid`. Secrets must remain in the deployment secret store. `timeoutSeconds`, `maxRows`, and `maxResultBytes` are additionally constrained by protocol ceilings of 30 seconds, 100 rows, and 16 MiB; assertion TTL is at most 60 seconds.
 
-Each assertion contains `iss`, `aud`, `sub` equal to the host Principal's `gkUserId`, a random `jti`, `iat`, `exp`, and `dataRoles` containing only the Principal's `dataRole`. The POST body contains only `datasetCode`, `metricCodes`, `dimensionCodes`, and `limit`; identity, endpoint, credentials, and deployment ceilings never enter the body.
+The JWT header is exactly `{alg:"HS256",typ:"JWT",kid}`. Its payload is exactly `iss`, `aud`, `sub`, `jti`, `iat`, `exp`, `conversationId`, and `turnId`; `sub` and both business ids come only from the trusted `DataQueryContext`. The POST body contains semantic request fields only. Filter operands are non-empty scalar arrays, matching DIC-BE's wire protocol.
 
-A successful response must be `application/json` with `success: true`, `complete: true`, `truncated: false`, matching `rowCount` and `rowsReturned`, string `columns`, and rectangular `rows`. The complete HTTP JSON document and normalized `{columns, rows}` result must fit `maxResultChars`, and rows must not exceed `maxRows`.
+A success response has exactly five fields: `{columns, rows, rowCount, complete:true, truncated:false}`. Columns must be unique strings, rows rectangular, and `rowCount` exact. A cell may contain nested plain dense JSON objects and arrays; every number is finite and lossless, strings are bounded, and iterative per-cell depth/node limits reject pathological nesting. Extra fields, non-JSON content, redirects, truncation, oversized row counts, and malformed values fail closed. Both the complete HTTP document and normalized result are capped by UTF-8 bytes, including exact-boundary and multibyte handling.
 
 ## Model Experience
 
-Indirectly, through the Data Aid `data_query` Consumer; this provider contributes no prompt or tool schema.
+Indirectly, through the Data Aid `data_query` Consumer; this Provider contributes no prompt or tool schema.
 
 #### KV Cache effect
 
-No direct invalidation; assertion and transport data never enter model-visible content.
+No direct invalidation; assertions and transport data never enter model-visible content.
 
 ## Known Limitations and Deferred Work
 
-- **Shared-secret rotation is deployment-owned** — one configured HS256 secret is active per provider instance; coordinated overlap or key identifiers require a future DIC-BE protocol revision.
+- **HS256 rotation is coordinated externally** — DSH selects an active `kid`, but deployment must keep DIC-BE's verification ring synchronized and retire old keys after the overlap window.
+- **Broker authorization is external** — this Provider proves the caller context and validates transport results; DIC-BE remains responsible for replay protection and all dataset, field, predicate, and row authorization.

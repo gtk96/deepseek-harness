@@ -141,6 +141,17 @@ function workspaceManifests(): WorkspaceManifest[] {
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  // Authenticated data-aid publishes independent Loader bundles for each
+  // deployment path; each subpath is imported directly by Cordis.
+  '@deepseek-ai/dsh-authenticated-principal-data-aid': [
+    'lib/loopback-test.js',
+    'lib/mse-gateway.js',
+    'lib/data-aid-health.js',
+    'lib/dic-be-turn-ingress.js',
+    'lib/turn-principal.js',
+    'lib/data-query-tool.js',
+    'lib/direct-query-tools.js',
+  ],
   // Statically linked client libraries keep their stylesheets next to the emitted
   // JavaScript, which imports them by relative path: the compile shell runs
   // them through its own CSS pipeline, so the sheets are published artifacts.

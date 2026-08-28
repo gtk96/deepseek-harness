@@ -36,9 +36,7 @@ export function buildDataAidAuthoritySql(input: {
   readonly ddUserId: DdUserId
   readonly partition: DataAidAuthorityPartition
 }): string {
-  if (input === undefined || input === null || typeof input !== 'object') {
-    throw new TypeError('data-aid authority SQL input is required')
-  }
+  assertAuthoritySqlInput(input)
   if (typeof input.ddUserId !== 'string' || input.ddUserId.length === 0) {
     throw new TypeError('data-aid authority SQL requires a non-empty ddUserId')
   }
@@ -83,12 +81,7 @@ LIMIT 2`
 export function createDataAidTablePrincipalResolver(
   options: DataAidTablePrincipalResolverOptions,
 ): DataAidPrincipalResolver {
-  if (options === undefined
-    || options === null
-    || typeof options.query !== 'function'
-    || typeof options.resolvePartition !== 'function') {
-    throw new TypeError('data-aid table resolver requires query and resolvePartition')
-  }
+  assertResolverOptions(options)
 
   return {
     async resolve(input: DataAidPrincipalResolutionInput): Promise<DataAidPrincipalResolution | undefined> {
@@ -104,15 +97,38 @@ export function createDataAidTablePrincipalResolver(
   }
 }
 
+/** Assert runtime authority SQL input before reading its fields. */
+function assertAuthoritySqlInput(input: unknown): asserts input is {
+  readonly ddUserId: DdUserId
+  readonly partition: DataAidAuthorityPartition
+} {
+  if (input === null || typeof input !== 'object') {
+    throw new TypeError('data-aid authority SQL input is required')
+  }
+}
+
+/** Assert injected resolver hooks before capturing them. */
+function assertResolverOptions(options: unknown): asserts options is DataAidTablePrincipalResolverOptions {
+  if (options === null
+    || typeof options !== 'object'
+    || !('query' in options)
+    || typeof options.query !== 'function'
+    || !('resolvePartition' in options)
+    || typeof options.resolvePartition !== 'function') {
+    throw new TypeError('data-aid table resolver requires query and resolvePartition')
+  }
+}
+
 /** Validate the explicit partition before it reaches the SQL text. */
-function validatePartition(partition: DataAidAuthorityPartition): void {
-  if (partition === undefined || partition === null || typeof partition !== 'object') {
+function validatePartition(partition: unknown): asserts partition is DataAidAuthorityPartition {
+  if (partition === null || typeof partition !== 'object') {
     throw new TypeError('data-aid authority partition is required')
   }
-  if (typeof partition.dt !== 'string' || !DATE_PARTITION.test(partition.dt)) {
+  const record = partition as Record<string, unknown>
+  if (typeof record.dt !== 'string' || !DATE_PARTITION.test(record.dt)) {
     throw new TypeError('data-aid authority dt must be YYYYMMDD')
   }
-  if (typeof partition.ht !== 'string' || !HOUR_PARTITION.test(partition.ht)) {
+  if (typeof record.ht !== 'string' || !HOUR_PARTITION.test(record.ht)) {
     throw new TypeError('data-aid authority ht must be HH')
   }
 }

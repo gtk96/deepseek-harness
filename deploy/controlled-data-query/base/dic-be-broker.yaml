@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dic-be-broker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dic-be-broker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dic-be-broker
+        app.kubernetes.io/component: broker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: dic-be-broker
+          image: registry.example.invalid/dataworks/dic-be@sha256:${DIC_BE_IMAGE_DIGEST}
+          imagePullPolicy: IfNotPresent
+          command: ["gunicorn"]
+          args: ["app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--workers", "2", "--timeout", "60"]
+          env:
+            - name: TIDB_PASSWORD
+              valueFrom: {secretKeyRef: {name: dic-be-broker-runtime, key: TIDB_PASSWORD}}
+            - name: DSH_ASSERTION_KEY_RING
+              valueFrom: {secretKeyRef: {name: dic-be-broker-runtime, key: DSH_ASSERTION_KEY_RING}}
+            - name: DSH_ASSERTION_ACTIVE_KID
+              valueFrom: {secretKeyRef: {name: dic-be-broker-runtime, key: DSH_ASSERTION_ACTIVE_KID}}
+            - name: DSH_ASSERTION_ACCEPTED_KIDS
+              valueFrom: {secretKeyRef: {name: dic-be-broker-runtime, key: DSH_ASSERTION_ACCEPTED_KIDS}}
+            - name: DSH_TURN_CALLBACK_SERVICE_TOKEN
+              valueFrom: {secretKeyRef: {name: dic-be-broker-runtime, key: DSH_TURN_CALLBACK_SERVICE_TOKEN}}
+            - name: MAXCOMPUTE_AK
+              valueFrom: {secretKeyRef: {name: dic-be-broker-runtime, key: MAXCOMPUTE_AK}}
+            - name: MAXCOMPUTE_SK
+              valueFrom: {secretKeyRef: {name: dic-be-broker-runtime, key: MAXCOMPUTE_SK}}
+          envFrom:
+            - configMapRef:
+                name: dic-be-database-config
+            - configMapRef:
+                name: dic-be-common-config
+            - configMapRef:
+                name: dic-be-broker-config
+          ports:
+            - name: http
+              containerPort: 8000
+          livenessProbe:
+            httpGet: {path: /health/check, port: http}
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet: {path: /health/ready, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 500m, memory: 512Mi}
+            limits: {cpu: "2", memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dic-be-broker
+spec:
+  selector:
+    app.kubernetes.io/name: dic-be-broker
+  ports:
+    - {name: http, port: 8000, targetPort: http}

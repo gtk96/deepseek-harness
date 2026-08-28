@@ -13,3 +13,8 @@
   config:
     timeoutSeconds: !!js Number(process.env.DATA_AID_QUERY_TIMEOUT_SECONDS ?? 30)
     defaultLimit: !!js Number(process.env.DATA_AID_QUERY_DEFAULT_LIMIT ?? 100)
+    maxSelectedFields: !!js Number(process.env.DATA_AID_QUERY_MAX_SELECTED_FIELDS ?? 32)
+    maxFilters: !!js Number(process.env.DATA_AID_QUERY_MAX_FILTERS ?? 32)
+    maxOrderBy: !!js Number(process.env.DATA_AID_QUERY_MAX_ORDER_BY ?? 32)
+    maxInValues: !!js Number(process.env.DATA_AID_QUERY_MAX_IN_VALUES ?? 32)
+    maxValueChars: !!js Number(process.env.DATA_AID_QUERY_MAX_VALUE_CHARS ?? 256)

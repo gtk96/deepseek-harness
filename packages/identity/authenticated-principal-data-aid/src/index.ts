@@ -32,6 +32,8 @@ export type {
   DataAidPrincipalResolutionInput,
   DataAidPrincipalResolver,
   DataAidTablePrincipalResolverOptions,
+  DataAidTrustedTurnBinding,
+  DataAidTrustedTurnIds,
 } from './types.ts'
 export { buildDataAidAuthoritySql, createDataAidTablePrincipalResolver } from './authority.ts'
 export { createDataAidMaxComputeMcpQuery } from './maxcompute-mcp.ts'
@@ -68,14 +70,7 @@ export class DataAidGatewayAuthenticator extends AuthenticatedPrincipalService {
    */
   constructor(ctx: Context, options: DataAidGatewayAuthenticatorOptions) {
     super(ctx)
-    const resolver = options?.resolver
-    if (options === undefined
-      || typeof options.verifyGatewayRequest !== 'function'
-      || resolver === undefined
-      || resolver === null
-      || typeof resolver.resolve !== 'function') {
-      throw new TypeError('data-aid authenticator requires verifyGatewayRequest and resolver.resolve')
-    }
+    assertAuthenticatorOptions(options)
     this.options = options
   }
 
@@ -125,3 +120,19 @@ export class DataAidGatewayAuthenticator extends AuthenticatedPrincipalService {
 }
 
 export default DataAidGatewayAuthenticator
+
+
+/** Assert required deployment hooks before retaining the provider configuration. */
+function assertAuthenticatorOptions(options: unknown): asserts options is DataAidGatewayAuthenticatorOptions {
+  if (options === null
+    || typeof options !== 'object'
+    || !('verifyGatewayRequest' in options)
+    || typeof options.verifyGatewayRequest !== 'function'
+    || !('resolver' in options)
+    || options.resolver === null
+    || typeof options.resolver !== 'object'
+    || !('resolve' in options.resolver)
+    || typeof options.resolver.resolve !== 'function') {
+    throw new TypeError('data-aid authenticator requires verifyGatewayRequest and resolver.resolve')
+  }
+}

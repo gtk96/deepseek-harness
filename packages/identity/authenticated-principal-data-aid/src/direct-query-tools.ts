@@ -181,7 +181,11 @@ function assertConfig(config: Config): void {
   }
 }
 
-/** Validate the single-statement read-query input shared by both local MCP servers. */
+/**
+ * Validate the single-statement read-query input shared by both local MCP servers.
+ * @param sql - local-only SQL text supplied to the direct query tool.
+ * @returns trimmed SELECT or WITH statement.
+ */
 function validateReadOnlySql(sql: string): string {
   const query = sql.trim()
   if (query.length === 0 || query.includes(';') || !/^(?:select|with)\b/i.test(query)) {
@@ -190,7 +194,13 @@ function validateReadOnlySql(sql: string): string {
   return query
 }
 
-/** Serialize a successful and complete raw MCP response to a model-safe bounded JSON value. */
+/**
+ * Serialize a successful and complete raw MCP response to a model-safe bounded JSON value.
+ * @param raw - direct MCP response envelope.
+ * @param maxResultChars - complete serialized character limit.
+ * @param source - service label used in safe error messages.
+ * @returns detached JSON value for the model-facing result.
+ */
 function serializeResult(raw: Record<string, unknown>, maxResultChars: number, source: string): JsonValue {
   if (raw.isError === true) throw new Error(`${source} MCP rejected the query`)
   const structured = raw.structuredContent
@@ -198,7 +208,7 @@ function serializeResult(raw: Record<string, unknown>, maxResultChars: number, s
     throw new Error(`${source} MCP returned an incomplete result`)
   }
   const serialized = JSON.stringify(raw)
-  if (serialized === undefined || serialized.length > maxResultChars) {
+  if (serialized.length > maxResultChars) {
     throw new Error(`${source} MCP result exceeded the configured result size`)
   }
   try {

@@ -137,6 +137,50 @@ describe('serializeMessages', () => {
     }])
   })
 
+  it('fills a placeholder reasoning_content when fillReasoningPlaceholder is set', () => {
+    const wire = serializeMessages([
+      createMessage({
+        role: 'assistant',
+        content: [{ type: 'tool-call', id: CallId('call-1'), name: 'get_weather', arguments: '{}' }],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+    ], true)
+    // Some gateways (new-api in DeepSeek thinking mode) reject assistant
+    // turns that omit the reasoning field entirely; the placeholder makes
+    // field presence deterministic without inventing CoT.
+    expect(wire).toEqual([{
+      role: 'assistant',
+      content: '',
+      reasoning_content: '(thinking omitted)',
+      tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'get_weather', arguments: '{}' } }],
+    }])
+  })
+
+  it('keeps real reasoning verbatim when fillReasoningPlaceholder is set', () => {
+    const wire = serializeMessages([
+      createMessage({
+        role: 'assistant',
+        content: [
+          { type: 'reasoning', text: 'real thinking' },
+          { type: 'text', text: 'answer' },
+        ],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+    ], true)
+    expect(wire).toEqual([{ role: 'assistant', content: 'answer', reasoning_content: 'real thinking' }])
+  })
+
+  it('omits reasoning_content by default on turns without reasoning', () => {
+    const wire = serializeMessages([
+      createMessage({
+        role: 'assistant',
+        content: [{ type: 'text', text: 'plain answer' }],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+    ])
+    expect(wire).toEqual([{ role: 'assistant', content: 'plain answer' }])
+  })
+
   it('serializes parallel tool calls in order', () => {
     const wire = serializeMessages([
       createMessage({
@@ -704,5 +748,116 @@ describe('review fixes: assistant content shapes', () => {
       source: { kind: 'plugin', plugin: 'test' },
     })])
     expect(wire[0]).toMatchObject({ content: '' })
+  })
+})
+
+describe('toolResultContinuation', () => {
+  const toolResultTurn = () => createUserMessage({
+    content: [{
+      type: 'tool-result',
+      toolCallId: CallId('call-1'),
+      content: [{ type: 'text', text: 'Sunny 22C' }],
+    }],
+    source: { kind: 'plugin', plugin: 'test' },
+  })
+
+  it('appends an empty user continuation when the request ends on a tool result', () => {
+    const wire = serializeRequest(
+      request({ messages: [toolResultTurn()] }),
+      { toolResultContinuation: true },
+    )
+    expect(wire.messages).toEqual([
+      { role: 'tool', tool_call_id: 'call-1', content: 'Sunny 22C' },
+      { role: 'user', content: '' },
+    ])
+  })
+
+  it('leaves a tool-ending request unchanged when the flag is off (default)', () => {
+    const wire = serializeRequest(request({ messages: [toolResultTurn()] }))
+    expect(wire.messages).toEqual([
+      { role: 'tool', tool_call_id: 'call-1', content: 'Sunny 22C' },
+    ])
+  })
+
+  it('does not append a continuation when the last message is not a tool result', () => {
+    const wire = serializeRequest(
+      request({
+        messages: [
+          createUserMessage({
+            content: [{ type: 'text', text: 'hi' }],
+            source: { kind: 'plugin', plugin: 'test' },
+          }),
+        ],
+      }),
+      { toolResultContinuation: true },
+    )
+    expect(wire.messages).toEqual([{ role: 'user', content: 'hi' }])
+  })
+
+  it('keeps real reasoning_content verbatim on the preceding assistant turn', () => {
+    const wire = serializeRequest(
+      request({
+        messages: [
+          createMessage({
+            role: 'assistant',
+            content: [
+              { type: 'reasoning', text: 'real thinking' },
+              { type: 'tool-call', id: CallId('call-1'), name: 'get_weather', arguments: '{"city":"Paris"}' },
+            ],
+            source: { kind: 'plugin', plugin: 'test' },
+          }),
+          toolResultTurn(),
+        ],
+      }),
+      { toolResultContinuation: true },
+    )
+    expect(wire.messages).toEqual([
+      {
+        role: 'assistant',
+        content: '',
+        reasoning_content: 'real thinking',
+        tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'get_weather', arguments: '{"city":"Paris"}' } }],
+      },
+      { role: 'tool', tool_call_id: 'call-1', content: 'Sunny 22C' },
+      { role: 'user', content: '' },
+    ])
+  })
+
+  it('appends the continuation on the image path too', async () => {
+    // A bare text tool result produces no trailing image user message, so the
+    // sequence still ends on a tool message and needs the continuation.
+    const wire = await serializeRequestWithImages(
+      request({ messages: [toolResultTurn()] }),
+      imageOptions([], fileResolver()),
+      { toolResultContinuation: true },
+    )
+    expect(wire.messages).toEqual([
+      { role: 'tool', tool_call_id: 'call-1', content: 'Sunny 22C' },
+      { role: 'user', content: '' },
+    ])
+  })
+
+  it('does not double-continue a tool-result image turn (image user message already ends it)', async () => {
+    const ref = imageRef()
+    const wire = await serializeRequestWithImages(
+      request({
+        model: 'deepseek-v4-flash-vision-exp',
+        messages: [createUserMessage({
+          content: [{
+            type: 'tool-result',
+            toolCallId: CallId('call-1'),
+            content: [{ type: 'image', attachment: ref }],
+          }],
+          source: { kind: 'plugin', plugin: 'test' },
+        })],
+      }),
+      imageOptions([ref], fileResolver()),
+      { toolResultContinuation: true },
+    )
+    const last = wire.messages.at(-1)
+    expect(last?.role).toBe('user')
+    // The trailing tool-result-image user message already provides the
+    // continuation, so no empty user turn is appended.
+    expect(wire.messages.filter(m => m.role === 'user')).toHaveLength(1)
   })
 })

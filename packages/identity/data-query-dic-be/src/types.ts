@@ -10,14 +10,16 @@ export interface DicBeDataQueryProviderOptions {
   readonly issuer: string
   /** JWT assertion audience. */
   readonly audience: string
-  /** Shared HS256 assertion secret. */
-  readonly assertionSecret: string
-  /** Assertion lifetime in whole seconds. */
+  /** Shared HS256 keys indexed by JWT `kid`; retained keys support coordinated rotation. */
+  readonly assertionKeyRing: Readonly<Record<string, string>>
+  /** Key id used to sign new assertions. */
+  readonly assertionActiveKid: string
+  /** Assertion lifetime in whole seconds, at most 60. */
   readonly assertionTtlSeconds: number
-  /** Complete request deadline in whole seconds. */
+  /** Complete request deadline in seconds, at most 30. */
   readonly timeoutSeconds: number
-  /** Maximum complete result rows accepted from DIC-BE. */
+  /** Maximum complete result rows accepted from DIC-BE, at most 100. */
   readonly maxRows: number
-  /** Maximum characters in both the HTTP JSON document and normalized result. */
-  readonly maxResultChars: number
+  /** Maximum UTF-8 bytes in both the HTTP JSON document and normalized result. */
+  readonly maxResultBytes: number
 }

@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-aid-config
+data:
+  DATA_AID_INGRESS_HOST: 0.0.0.0
+  DATA_AID_INGRESS_PORT: "3081"
+  DATA_AID_INGRESS_PATH: /v1/internal/data-query/turns
+  DATA_AID_INGRESS_SERVICE_IDENTITY: dic-be-public
+  DATA_AID_HEALTH_LIVE_PATH: /healthz/live
+  DATA_AID_HEALTH_READY_PATH: /healthz/ready
+  DATA_AID_QUERY_BASE_URL: http://dic-be-broker:8000
+  DATA_AID_QUERY_PATH: /v1/internal/data-query/query
+  DATA_AID_QUERY_ISSUER: dsh
+  DATA_AID_QUERY_AUDIENCE: dic-be:data-query
+  DATA_AID_QUERY_ASSERTION_TTL_SECONDS: "30"
+  DATA_AID_QUERY_TIMEOUT_SECONDS: "30"
+  DATA_AID_QUERY_MAX_ROWS: "100"
+  DATA_AID_QUERY_MAX_RESULT_BYTES: "1048576"
+  DATA_AID_TURN_CALLBACK_URL: http://dic-be-broker:8000/v1/internal/data-query/turn-state
+  DATA_AID_TURN_CALLBACK_SERVICE_IDENTITY: dsh
+  DATA_AID_TURN_CALLBACK_TIMEOUT_SECONDS: "10"
+  DATA_AID_TURN_CALLBACK_MAX_ATTEMPTS: "3"
+  DATA_AID_TURN_CALLBACK_RETRY_DELAY_MS: "250"
+  DATA_AID_TURN_CALLBACK_MAX_BODY_BYTES: "1100000"
+  DATA_AID_TURN_CALLBACK_MAX_ANSWER_CHARS: "16384"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dic-be-database-config
+data:
+  TIDB_HOST: tidb.data-platform.svc.cluster.local
+  TIDB_PORT: "4000"
+  TIDB_DB: data_metric
+  TIDB_USER: controlled_data_query
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dic-be-common-config
+data:
+  APP_ENV: production
+  APP_PORT: "8000"
+  AUTH_ENABLED: "true"
+  GATEWAY_PREFIX: /bigdata/dic
+  DSH_ASSERTION_ISSUER: dsh
+  DSH_ASSERTION_AUDIENCE: dic-be:data-query
+  DSH_ASSERTION_MAX_TTL_SECONDS: "60"
+  DSH_ASSERTION_CLOCK_SKEW_SECONDS: "5"
+  DATA_QUERY_EXECUTOR_TIMEOUT_SECONDS: "30"
+  DATA_QUERY_EXECUTOR_MAX_ROWS: "100"
+  DATA_QUERY_MAX_RESULT_BYTES: "1048576"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dic-be-public-config
+data:
+  APP_SURFACE: public
+  DSH_TURN_WORKER_ENABLED: "true"
+  DSH_TURN_URL: http://dsh:3081/v1/internal/data-query/turns
+  DSH_TURN_SERVICE_IDENTITY: dic-be-public
+  DSH_TURN_TIMEOUT_SECONDS: "30"
+  DSH_TURN_POLL_SECONDS: "1"
+  DSH_TURN_LEASE_SECONDS: "60"
+  DSH_TURN_SHUTDOWN_TIMEOUT_SECONDS: "5"
+  DSH_TURN_COMPLETION_TIMEOUT_SECONDS: "180"
+  DATA_QUERY_MAXCOMPUTE_ENABLED: "false"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dic-be-broker-config
+data:
+  APP_SURFACE: broker
+  DSH_TURN_WORKER_ENABLED: "false"
+  DSH_TURN_CALLBACK_SERVICE_IDENTITY: dsh
+  DSH_TURN_CALLBACK_MAX_BODY_BYTES: "1100000"
+  DSH_TURN_CALLBACK_MAX_ANSWER_CHARS: "16384"
+  DATA_QUERY_MAXCOMPUTE_ENABLED: "true"
+  DATA_QUERY_MAXCOMPUTE_CREDENTIAL_REF: secret-manager://platform/controlled-data-query/maxcompute
+  MAXCOMPUTE_ENDPOINT: ${MAXCOMPUTE_ENDPOINT}
+  MAXCOMPUTE_PROJECT: ${MAXCOMPUTE_PROJECT}
+  DATA_QUERY_MAXCOMPUTE_QUOTA: ${DATA_QUERY_MAXCOMPUTE_QUOTA}

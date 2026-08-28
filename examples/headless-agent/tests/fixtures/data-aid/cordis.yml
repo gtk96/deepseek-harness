@@ -1,0 +1,50 @@
+# Keyless runnable Data Aid transcript: real Agent loop, semantic tool, and DIC-BE HTTP Provider.
+- id: llm
+  name: './mock-llm.ts'
+
+- id: spine
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    agents:
+      - id: main
+        provider: data-aid-snapshot
+        model: data-aid-snapshot
+        cwd: !!js process.cwd()
+    workspaceContext: false
+    skills:
+      enabled: false
+    toolBash: false
+    toolJobs: false
+    persona: 'Use the only available data_query tool for the requested governed metric.'
+
+- id: data-query
+  name: '@deepseek-ai/dsh-data-query'
+
+- id: trusted-turn
+  name: '@deepseek-ai/dsh-authenticated-principal-data-aid/turn-principal'
+
+- id: provider
+  name: '@deepseek-ai/dsh-data-query-dic-be'
+  config:
+    baseURL: !!js process.env.DATA_AID_SNAPSHOT_BASE_URL
+    path: /v1/internal/data-query/query
+    issuer: snapshot-dsh
+    audience: snapshot-dic-be
+    assertionKeyRing:
+      snapshot-active: local-snapshot-assertion-secret-32-bytes-minimum
+    assertionActiveKid: snapshot-active
+    assertionTtlSeconds: 30
+    timeoutSeconds: 5
+    maxRows: 10
+    maxResultBytes: 4096
+
+- id: tool
+  name: '@deepseek-ai/dsh-authenticated-principal-data-aid/data-query-tool'
+  config:
+    timeoutSeconds: 5
+    defaultLimit: 10
+    maxSelectedFields: 8
+    maxFilters: 8
+    maxOrderBy: 8
+    maxInValues: 8
+    maxValueChars: 64

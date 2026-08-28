@@ -17,9 +17,7 @@ export function createDataAidMaxComputeMcpQuery(
   mcpClients: Pick<McpClientRegistry, 'call'>,
   options: DataAidMaxComputeMcpQueryOptions,
 ): DataAidAuthorityQuery {
-  if (mcpClients === undefined || mcpClients === null || typeof mcpClients.call !== 'function') {
-    throw new TypeError('data-aid MaxCompute MCP query requires mcpClients.call')
-  }
+  assertMcpClients(mcpClients)
   validateOptions(options)
 
   return async (sql, signal) => {
@@ -39,24 +37,34 @@ export function createDataAidMaxComputeMcpQuery(
   }
 }
 
+/** Assert the injected MCP client method before capturing it. */
+function assertMcpClients(value: unknown): asserts value is Pick<McpClientRegistry, 'call'> {
+  if (value === null || typeof value !== 'object' || !('call' in value) || typeof value.call !== 'function') {
+    throw new TypeError('data-aid MaxCompute MCP query requires mcpClients.call')
+  }
+}
+
 /** Validate the fixed deployment configuration before the first authenticated request. */
-function validateOptions(options: DataAidMaxComputeMcpQueryOptions): void {
-  if (options === undefined || options === null || typeof options !== 'object') {
+function validateOptions(options: unknown): asserts options is DataAidMaxComputeMcpQueryOptions {
+  if (options === null || typeof options !== 'object') {
     throw new TypeError('data-aid MaxCompute MCP query options are required')
   }
+  const record = options as Record<string, unknown>
   for (const [key, value] of Object.entries({
-    serverName: options.serverName,
-    toolName: options.toolName,
-    project: options.project,
+    serverName: record.serverName,
+    toolName: record.toolName,
+    project: record.project,
   })) {
     if (typeof value !== 'string' || value.trim().length === 0) {
       throw new TypeError(`data-aid MaxCompute MCP query ${key} must be a non-empty string`)
     }
   }
-  if (!Number.isFinite(options.maxCU) || options.maxCU <= 0) {
+  if (typeof record.maxCU !== 'number' || !Number.isFinite(record.maxCU) || record.maxCU <= 0) {
     throw new TypeError('data-aid MaxCompute MCP query maxCU must be positive')
   }
-  if (!Number.isInteger(options.timeoutSeconds) || options.timeoutSeconds <= 0) {
+  if (typeof record.timeoutSeconds !== 'number'
+    || !Number.isInteger(record.timeoutSeconds)
+    || record.timeoutSeconds <= 0) {
     throw new TypeError('data-aid MaxCompute MCP query timeoutSeconds must be a positive integer')
   }
 }

@@ -40,7 +40,7 @@ async function mounted(): Promise<{
   if (service === undefined) throw new Error('fixture Principal service was not installed')
   return {
     ctx,
-    service: service as FixturePrincipalService,
+    service,
     dispose: () => fiber.dispose(),
   }
 }
@@ -104,7 +104,7 @@ describe('AuthenticatedPrincipalService', () => {
 
     service.withPrincipal(current, () => {
       detached = new Promise((resolve) => {
-        queueMicrotask(() => resolve(service.current()))
+        queueMicrotask(() => { resolve(service.current()) })
       })
     })
 
@@ -124,7 +124,7 @@ describe('AuthenticatedPrincipalService', () => {
       }
     }
     const current = principal('species')
-    const returned = service.withPrincipal(current, () => new BrokenSpeciesPromise(resolve => resolve(current)))
+    const returned = service.withPrincipal(current, () => new BrokenSpeciesPromise((resolve) => { resolve(current) }))
     useValidSpecies = true
     await expect(returned).resolves.toBe(current)
     await dispose()
@@ -171,7 +171,7 @@ describe('AuthenticatedPrincipalService', () => {
     const repeatedDisposal = disposeScopes()
     await Promise.resolve()
     expect(completed).toBe(false)
-    expect(() => service.withPrincipal(current, () => undefined)).toThrow('scope is disposed')
+    expect(() => { service.withPrincipal(current, () => undefined) }).toThrow('scope is disposed')
 
     release()
     await operation
@@ -179,7 +179,7 @@ describe('AuthenticatedPrincipalService', () => {
     await repeatedDisposal
     expect(completed).toBe(true)
     expect(() => service.current()).toThrow('scope is disposed')
-    expect(() => service.withoutPrincipal(() => undefined)).toThrow('scope is disposed')
+    expect(() => { service.withoutPrincipal(() => undefined) }).toThrow('scope is disposed')
   })
 
   it('releases active scopes when disposal starts inside the operation', async () => {

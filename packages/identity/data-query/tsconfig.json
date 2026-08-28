@@ -18,7 +18,13 @@
       "path": "../../../vendor/schemastery"
     },
     {
+      "path": "../../util/brand"
+    },
+    {
       "path": "../authenticated-principal"
+    },
+    {
+      "path": "../../llm/llm"
     },
     {
       "path": "../../runtime-diagnostics/invariants"

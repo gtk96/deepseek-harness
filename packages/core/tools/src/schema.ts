@@ -20,25 +20,32 @@ export interface ValueSchemaAnnotations {
   examples?: JsonValue
 }
 
-/** String value schema with type-correct literal constraints. */
+/** String value schema with type-correct literal and length/pattern constraints. */
 export interface StringValueSchemaSpec extends ValueSchemaAnnotations {
   type: 'string'
   enum?: readonly string[]
   const?: string
+  minLength?: number
+  maxLength?: number
+  pattern?: string
 }
 
-/** Finite JSON-number schema with type-correct literal constraints. */
+/** Finite JSON-number schema with type-correct literal and range constraints. */
 export interface NumberValueSchemaSpec extends ValueSchemaAnnotations {
   type: 'number'
   enum?: readonly number[]
   const?: number
+  minimum?: number
+  maximum?: number
 }
 
-/** Integer schema with type-correct literal constraints. */
+/** Integer schema with type-correct literal and range constraints. */
 export interface IntegerValueSchemaSpec extends ValueSchemaAnnotations {
   type: 'integer'
   enum?: readonly number[]
   const?: number
+  minimum?: number
+  maximum?: number
 }
 
 /** Boolean value schema with type-correct literal constraints. */
@@ -59,6 +66,9 @@ export interface NullValueSchemaSpec extends ValueSchemaAnnotations {
 export interface ArrayValueSchemaSpec extends ValueSchemaAnnotations {
   type: 'array'
   items?: ValueSchemaSpec
+  minItems?: number
+  maxItems?: number
+  uniqueItems?: boolean
 }
 
 /**
@@ -103,6 +113,12 @@ export type ParameterPropertySpec = ValueSchemaSpec & { required?: true }
 export type ParameterSchemaSpec = {
   [key: string]: ParameterPropertySpec
   [key: symbol]: never
+}
+
+/** Root-object options for compiling or defining tool parameters. */
+export interface ParameterRootOptions {
+  /** Whether undeclared root keys are accepted; omitted preserves JSON Schema's open default. */
+  readonly additionalProperties?: boolean
 }
 
 /** Raw JSON Schema projection of the implicit parameter object. */
@@ -380,9 +396,12 @@ function runSchemaCompiler(initial: CompileTask): void {
         }
         break
       case 'array':
-        assertAuthorKeys(input, path, [...authorKeys, 'type', 'items'])
+        assertAuthorKeys(input, path, [...authorKeys, 'type', 'items', 'minItems', 'maxItems', 'uniqueItems'])
         node.type = 'array'
         copyAnnotations(input, node)
+        if (Object.hasOwn(input, 'minItems')) node.minItems = input.minItems as number
+        if (Object.hasOwn(input, 'maxItems')) node.maxItems = input.maxItems as number
+        if (Object.hasOwn(input, 'uniqueItems')) node.uniqueItems = input.uniqueItems as boolean
         if (Object.hasOwn(input, 'items')) {
           tasks.push({
             kind: 'value',
@@ -394,8 +413,31 @@ function runSchemaCompiler(initial: CompileTask): void {
         }
         break
       case 'string':
+        assertAuthorKeys(input, path, [...authorKeys, 'type', 'enum', 'const', 'minLength', 'maxLength', 'pattern'])
+        node.type = inputType
+        copyAnnotations(input, node)
+        if (Object.hasOwn(input, 'minLength')) node.minLength = input.minLength as number
+        if (Object.hasOwn(input, 'maxLength')) node.maxLength = input.maxLength as number
+        if (Object.hasOwn(input, 'pattern')) node.pattern = input.pattern as string
+        if (Object.hasOwn(input, 'enum')) {
+          if (!isPlainJsonArray(input.enum)) authorError(`${path}.enum must be a non-empty array of scalar values`)
+          node.enum = Array.from(input.enum, entry => entry as JsonSchemaScalar)
+        }
+        if (Object.hasOwn(input, 'const')) node.const = input.const as JsonSchemaScalar
+        break
       case 'number':
       case 'integer':
+        assertAuthorKeys(input, path, [...authorKeys, 'type', 'enum', 'const', 'minimum', 'maximum'])
+        node.type = inputType
+        copyAnnotations(input, node)
+        if (Object.hasOwn(input, 'minimum')) node.minimum = input.minimum as number
+        if (Object.hasOwn(input, 'maximum')) node.maximum = input.maximum as number
+        if (Object.hasOwn(input, 'enum')) {
+          if (!isPlainJsonArray(input.enum)) authorError(`${path}.enum must be a non-empty array of scalar values`)
+          node.enum = Array.from(input.enum, entry => entry as JsonSchemaScalar)
+        }
+        if (Object.hasOwn(input, 'const')) node.const = input.const as JsonSchemaScalar
+        break
       case 'boolean':
       case 'null':
         assertAuthorKeys(input, path, [...authorKeys, 'type', 'enum', 'const'])
@@ -442,15 +484,20 @@ export function valueSchemaSpecToJsonSchema(spec: ValueSchemaSpec): JsonSchemaNo
 }
 
 /**
- * Compile the implicit open parameter object into raw JSON Schema.
+ * Compile the implicit parameter object into raw JSON Schema.
  * @param spec - per-property parameter definitions.
- * @returns An object-rooted raw schema with no implicit-root openness override.
+ * @param root - explicit root-object openness; omitted preserves the open default.
+ * @returns An object-rooted raw schema.
  */
-export function parameterSchemaSpecToJsonSchema(spec: ParameterSchemaSpec): ParameterJsonSchema {
+export function parameterSchemaSpecToJsonSchema(
+  spec: ParameterSchemaSpec,
+  root: ParameterRootOptions = {},
+): ParameterJsonSchema {
   const compiled = compilePropertyMap(spec, 'parameters')
   const schema: ParameterJsonSchema = {
     type: 'object',
     properties: compiled.properties,
+    ...(root.additionalProperties === undefined ? {} : { additionalProperties: root.additionalProperties }),
     ...(compiled.required === undefined ? {} : { required: compiled.required }),
   }
   assertSupportedJsonSchema(schema)
@@ -485,8 +532,10 @@ export interface DefineToolOptions<S extends ParameterSchemaSpec, O extends Valu
   readonly name: string
   /** Human-readable description sent to the model. */
   readonly description: string
-  /** Per-property parameter schema compiled to an implicit open object root. */
+  /** Per-property parameter schema. */
   readonly parameters: S
+  /** Root-object openness applied to both model schema and execution validation. */
+  readonly parameterRoot?: ParameterRootOptions
   /** Canonical output schema plus pure Native and presentation projections. */
   readonly output: {
     /** Schema enforced against every successful body or policy-replaced value. */
@@ -563,7 +612,7 @@ export function defineTool<const S extends ParameterSchemaSpec, const O extends 
   if (options.timeoutMs !== undefined && (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)) {
     throw new Error(`defineTool(${options.name}): timeoutMs must be a positive finite number`)
   }
-  const parameters = parameterSchemaSpecToJsonSchema(options.parameters)
+  const parameters = parameterSchemaSpecToJsonSchema(options.parameters, options.parameterRoot)
   const outputSchema = valueSchemaSpecToJsonSchema(options.output.schema)
   const validate = (args: unknown): string[] => validateJsonSchemaValue(parameters, args, '')
   const tool: ToolDefinition = {

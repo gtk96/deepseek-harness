@@ -81,6 +81,7 @@ export {
   type ValueSchemaSpec,
   type ParameterPropertySpec,
   type ParameterSchemaSpec,
+  type ParameterRootOptions,
   type ParameterJsonSchema,
   type InferValue,
   type InferArgs,

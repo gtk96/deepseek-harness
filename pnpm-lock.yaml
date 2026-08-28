@@ -186,6 +186,15 @@ importers:
       '@deepseek-ai/dsh-cordis-client-runner':
         specifier: workspace:^
         version: link:../../packages/extensions/cordis-client-runner
+      '@deepseek-ai/dsh-data-aid':
+        specifier: workspace:^
+        version: link:../../packages/bundle/data-aid
+      '@deepseek-ai/dsh-data-query':
+        specifier: workspace:^
+        version: link:../../packages/identity/data-query
+      '@deepseek-ai/dsh-data-query-dic-be':
+        specifier: workspace:^
+        version: link:../../packages/identity/data-query-dic-be
       '@deepseek-ai/dsh-fs-local':
         specifier: workspace:^
         version: link:../../packages/fs/fs-local
@@ -422,6 +431,150 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@22.20.0)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
 
+  deploy/controlled-data-query/images/dsh/runtime:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-group':
+        specifier: workspace:^
+        version: link:../../../../../vendor/group
+      '@deepseek-ai/cordis-plugin-hmr':
+        specifier: workspace:^
+        version: link:../../../../../vendor/hmr
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../../../vendor/loader
+      '@deepseek-ai/cordis-plugin-timer':
+        specifier: workspace:^
+        version: link:../../../../../vendor/timer
+      '@deepseek-ai/cosmokit':
+        specifier: link:../../../../../vendor/cosmokit
+        version: link:../../../../../vendor/cosmokit
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:^
+        version: link:../../../../../packages/core/agent
+      '@deepseek-ai/dsh-agent-default-model':
+        specifier: workspace:^
+        version: link:../../../../../packages/core/agent-default-model
+      '@deepseek-ai/dsh-agent-loop':
+        specifier: workspace:^
+        version: link:../../../../../packages/core/agent-loop
+      '@deepseek-ai/dsh-agent-presets':
+        specifier: workspace:^
+        version: link:../../../../../packages/preset/agent-presets
+      '@deepseek-ai/dsh-anonymous-user-id':
+        specifier: workspace:^
+        version: link:../../../../../packages/identity/anonymous-user-id
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:^
+        version: link:../../../../../packages/boot/app-boot
+      '@deepseek-ai/dsh-atomic-write':
+        specifier: workspace:^
+        version: link:../../../../../packages/util/atomic-write
+      '@deepseek-ai/dsh-attachment':
+        specifier: workspace:^
+        version: link:../../../../../packages/attachment/attachment
+      '@deepseek-ai/dsh-authenticated-principal':
+        specifier: workspace:^
+        version: link:../../../../../packages/identity/authenticated-principal
+      '@deepseek-ai/dsh-authenticated-principal-data-aid':
+        specifier: workspace:^
+        version: link:../../../../../packages/identity/authenticated-principal-data-aid
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../../../../packages/util/brand
+      '@deepseek-ai/dsh-cmdline':
+        specifier: workspace:^
+        version: link:../../../../../packages/boot/cmdline
+      '@deepseek-ai/dsh-code-runtime':
+        specifier: workspace:^
+        version: link:../../../../../packages/code-runtime/code-runtime
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../../../../packages/credentials/credentials
+      '@deepseek-ai/dsh-credentials-local':
+        specifier: workspace:^
+        version: link:../../../../../packages/credentials/credentials-local
+      '@deepseek-ai/dsh-data-aid':
+        specifier: workspace:^
+        version: link:../../../../../packages/bundle/data-aid
+      '@deepseek-ai/dsh-data-query':
+        specifier: workspace:^
+        version: link:../../../../../packages/identity/data-query
+      '@deepseek-ai/dsh-data-query-dic-be':
+        specifier: workspace:^
+        version: link:../../../../../packages/identity/data-query-dic-be
+      '@deepseek-ai/dsh-home-paths':
+        specifier: workspace:^
+        version: link:../../../../../packages/util/home-paths
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: workspace:^
+        version: link:../../../../../packages/host/webserver
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../../../../packages/runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-launch-environment':
+        specifier: workspace:^
+        version: link:../../../../../packages/util/launch-environment
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../../../../packages/llm/llm
+      '@deepseek-ai/dsh-llm-deepseek':
+        specifier: workspace:^
+        version: link:../../../../../packages/llm/llm-deepseek
+      '@deepseek-ai/dsh-mcp-client':
+        specifier: workspace:^
+        version: link:../../../../../packages/mcp/mcp-client
+      '@deepseek-ai/dsh-persona':
+        specifier: workspace:^
+        version: link:../../../../../packages/preset/persona
+      '@deepseek-ai/dsh-scope':
+        specifier: workspace:^
+        version: link:../../../../../packages/core/scope
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../../../../packages/core/session
+      '@deepseek-ai/dsh-session-persistence':
+        specifier: workspace:^
+        version: link:../../../../../packages/session/session-persistence
+      '@deepseek-ai/dsh-settings':
+        specifier: workspace:^
+        version: link:../../../../../packages/settings/settings
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../../../../packages/subprocess/subprocess
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../../../../packages/core/system-prompt
+      '@deepseek-ai/dsh-timeout':
+        specifier: workspace:^
+        version: link:../../../../../packages/util/timeout
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../../../../packages/core/tools
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:^
+        version: link:../../../../../packages/typert/protocol
+      '@deepseek-ai/dsh-user-approval':
+        specifier: workspace:^
+        version: link:../../../../../packages/interaction/user-approval
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../../../vendor/schemastery
+        version: link:../../../../../vendor/schemastery
+      commander:
+        specifier: ^15.0.0
+        version: 15.0.0
+      js-yaml:
+        specifier: ^4.2.0
+        version: 4.2.0
+      node-addon-require-builtin:
+        specifier: ^0.1.4
+        version: 0.1.4
+
   examples:
     dependencies:
       '@deepseek-ai/cordis-plugin-hmr':
@@ -457,6 +610,12 @@ importers:
       '@deepseek-ai/dsh-attachment-local':
         specifier: workspace:*
         version: link:../packages/attachment/attachment-local
+      '@deepseek-ai/dsh-authenticated-principal':
+        specifier: workspace:*
+        version: link:../packages/identity/authenticated-principal
+      '@deepseek-ai/dsh-authenticated-principal-data-aid':
+        specifier: workspace:*
+        version: link:../packages/identity/authenticated-principal-data-aid
       '@deepseek-ai/dsh-bash-local':
         specifier: workspace:*
         version: link:../packages/shell/bash-local
@@ -490,6 +649,12 @@ importers:
       '@deepseek-ai/dsh-credentials-local':
         specifier: workspace:*
         version: link:../packages/credentials/credentials-local
+      '@deepseek-ai/dsh-data-query':
+        specifier: workspace:*
+        version: link:../packages/identity/data-query
+      '@deepseek-ai/dsh-data-query-dic-be':
+        specifier: workspace:*
+        version: link:../packages/identity/data-query-dic-be
       '@deepseek-ai/dsh-e2b':
         specifier: workspace:*
         version: link:../packages/e2b/e2b
@@ -1240,6 +1405,61 @@ importers:
       '@deepseek-ai/dsh-workflow-worker-thread':
         specifier: workspace:^
         version: link:../../workflow/workflow-worker-thread
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+
+  packages/bundle/data-aid:
+    dependencies:
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-default-model':
+        specifier: workspace:^
+        version: link:../../core/agent-default-model
+      '@deepseek-ai/dsh-agent-loop':
+        specifier: workspace:^
+        version: link:../../core/agent-loop
+      '@deepseek-ai/dsh-agent-presets':
+        specifier: workspace:^
+        version: link:../../preset/agent-presets
+      '@deepseek-ai/dsh-authenticated-principal-data-aid':
+        specifier: workspace:^
+        version: link:../../identity/authenticated-principal-data-aid
+      '@deepseek-ai/dsh-credentials-local':
+        specifier: workspace:^
+        version: link:../../credentials/credentials-local
+      '@deepseek-ai/dsh-data-query':
+        specifier: workspace:^
+        version: link:../../identity/data-query
+      '@deepseek-ai/dsh-data-query-dic-be':
+        specifier: workspace:^
+        version: link:../../identity/data-query-dic-be
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: workspace:^
+        version: link:../../host/webserver
+      '@deepseek-ai/dsh-launch-environment':
+        specifier: workspace:^
+        version: link:../../util/launch-environment
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-llm-deepseek':
+        specifier: workspace:^
+        version: link:../../llm/llm-deepseek
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
@@ -5257,9 +5477,24 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
       '@deepseek-ai/dsh-agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-default-model':
+        specifier: workspace:^
+        version: link:../../core/agent-default-model
+      '@deepseek-ai/dsh-agent-presets':
+        specifier: workspace:^
+        version: link:../../preset/agent-presets
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:^
+        version: link:../../boot/app-boot
       '@deepseek-ai/dsh-authenticated-principal':
         specifier: workspace:^
         version: link:../authenticated-principal
@@ -5269,15 +5504,36 @@ importers:
       '@deepseek-ai/dsh-data-query':
         specifier: workspace:^
         version: link:../data-query
+      '@deepseek-ai/dsh-data-query-dic-be':
+        specifier: workspace:^
+        version: link:../data-query-dic-be
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: workspace:^
+        version: link:../../host/webserver
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@deepseek-ai/dsh-loader-smoke':
+        specifier: workspace:^
+        version: link:../../test-support/loader-smoke
       '@deepseek-ai/dsh-mcp-client':
         specifier: workspace:^
         version: link:../../mcp/mcp-client
+      '@deepseek-ai/dsh-persona':
+        specifier: workspace:^
+        version: link:../../preset/persona
+      '@deepseek-ai/dsh-scope':
+        specifier: workspace:^
+        version: link:../../core/scope
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@deepseek-ai/dsh-tools':
         specifier: workspace:^
         version: link:../../core/tools
@@ -5294,9 +5550,15 @@ importers:
       '@deepseek-ai/dsh-authenticated-principal':
         specifier: workspace:^
         version: link:../authenticated-principal
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
 
   packages/identity/data-query-dic-be:
     dependencies:
@@ -5319,6 +5581,9 @@ importers:
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-launch-environment':
+        specifier: workspace:^
+        version: link:../../util/launch-environment
       '@deepseek-ai/dsh-timeout':
         specifier: workspace:^
         version: link:../../util/timeout
@@ -8827,6 +9092,12 @@ importers:
       '@deepseek-ai/dsh-attachment':
         specifier: workspace:^
         version: link:../../packages/attachment/attachment
+      '@deepseek-ai/dsh-authenticated-principal':
+        specifier: workspace:^
+        version: link:../../packages/identity/authenticated-principal
+      '@deepseek-ai/dsh-authenticated-principal-data-aid':
+        specifier: workspace:^
+        version: link:../../packages/identity/authenticated-principal-data-aid
       '@deepseek-ai/dsh-authorization':
         specifier: workspace:^
         version: link:../../packages/credentials/authorization
@@ -8866,6 +9137,9 @@ importers:
       '@deepseek-ai/dsh-credentials':
         specifier: workspace:^
         version: link:../../packages/credentials/credentials
+      '@deepseek-ai/dsh-data-query':
+        specifier: workspace:^
+        version: link:../../packages/identity/data-query
       '@deepseek-ai/dsh-fs':
         specifier: workspace:^
         version: link:../../packages/fs/fs

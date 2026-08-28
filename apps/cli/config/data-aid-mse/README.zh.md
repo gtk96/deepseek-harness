@@ -1,49 +1,37 @@
-# data-aid MSE 钉钉部署
+# 受控 Data Aid profile 部署样例
 
 [English](README.md) | 中文
 
-这是 MSE 或企业 SSO proxy 拥有钉钉浏览器登录的生产 DSH Web overlay。它不提供本地登录页：proxy 把未认证浏览器重定向到钉钉、验证回调、移除浏览器提交的任何 `gk-service-user` 与 `gk-service-app` header，并只为已认证的上游请求注入这些 header。
+随附的 `data-aid` profile 从封闭的 [`@deepseek-ai/dsh-data-aid`](../../../../packages/bundle/data-aid/README.zh.md) bundle 启动，而不以 `web` 或 `base` 为基础。其 enabled 配置行只包含最小 Agent／LLM runtime、安装自身持有的 `data-aid` preset、受控 `dataQuery` Runtime、DIC-BE HTTP Provider、可信 turn binding、专用 HTTP carrier 与严格的服务认证 turn ingress。它不挂载 raw MCP Client、MaxCompute／Hologres MCP Server、直查工具、浏览器身份 resolver、通用 API 或数据源凭据。
 
-除非请求的直接 TCP peer 等于 `DSH_MSE_PROXY_IP`，DSH 都会拒绝请求。将该值设为 DSH 实际观测到的 MSE/SSO 一跳地址，如相邻 proxy、ingress pod 或负载均衡地址。不要使用 `X-Forwarded-For`、浏览器地址、hostname 或公网 MSE 地址，除非它同时也是直接 peer。随后 Provider 解析注入的钉钉 visitor id，并在每次 Remote 调用前调用非模型的 MaxCompute 权威 MCP bridge。
-
-必需的部署值：
-
-```powershell
-$env:DSH_DATA_AID_PUBLIC_AUTHORITY = 'data-aid.example.internal'
-$env:DSH_MSE_PROXY_IP = '10.0.0.8'
-$env:DATA_AID_MAXCOMPUTE_MCP_URL = 'https://maxcompute-mcp.example.internal/mcp'
-$env:DATA_AID_MAXCOMPUTE_MCP_TOKEN = 'replace-with-the-deployment-secret'
-$env:DATA_AID_AUTHORITY_DT = '20260819'
-$env:DATA_AID_AUTHORITY_HT = '14'
-```
-
-`DSH_DATA_AID_PUBLIC_AUTHORITY` 是不含 scheme 或路径的 `host[:port]` 权威。`DATA_AID_AUTHORITY_DT` 与 `DATA_AID_AUTHORITY_HT` 选择精确的 MaxCompute 权威快照；它们必须由部署自动化刷新，绝不由 DSH provider 推断。不要把 MCP token 写进这个 overlay 或提交它。
-
-从仓库根目录启动 DSH 上游监听器：
-
-```powershell
-node --import tsx/esm apps/cli/src/bin.ts --profile web --patch apps/cli/config/data-aid-mse/cordis.patch.yml --host 0.0.0.0 --port 3180
-```
-
-只向浏览器发布 MSE 公网权威。配置 MSE/企业 SSO 终止 TLS、对浏览器路由执行企业钉钉登录策略、从进入的客户端流量移除两个身份 header、上游注入其验证值，并代理到 DSH 监听器。不要公开暴露 DSH 上游端口：直接请求没有可信 proxy peer，会被拒绝。MaxCompute bridge 配置了 `exposeTools: false`，因此其 `execute_sql` 能力对模型不可用。
-
-MSE 策略与钉钉应用凭据属于基础设施配置。它们有意不存放在 DSH 源码或浏览器 JavaScript 中。本机直接 `http://127.0.0.1:3180` 请求无法重定向到钉钉，因为不经过 MSE。
-
-## 受权业务查询 broker
-
-该 overlay 还选择 `data-aid` preset，其唯一的模型可见数据能力是 `data_query`。工具接受语义目录编码而非 SQL，并经配置的 `dic-be` provider 派发，该 provider 签发短期宿主 Principal 断言并发送给独立查询 broker。把 broker 端点、断言身份与有界查询设置加入部署环境：
+通过部署 secret store 设置 Query Broker 与 assertion 值，然后启动专用 profile：
 
 ```powershell
 $env:DATA_AID_QUERY_BASE_URL = 'https://data-query-broker.example.internal'
 $env:DATA_AID_QUERY_PATH = '/v1/internal/data-query/query'
-$env:DATA_AID_QUERY_ISSUER = 'dsh-web'
-$env:DATA_AID_QUERY_AUDIENCE = 'dic-be'
-$env:DATA_AID_QUERY_ASSERTION_SECRET = 'replace-with-the-deployment-secret'
+$env:DATA_AID_QUERY_ISSUER = 'dsh-data-aid'
+$env:DATA_AID_QUERY_AUDIENCE = 'dic-be:data-query'
+$env:DATA_AID_QUERY_ASSERTION_KEY_RING = $env:DATA_AID_QUERY_ASSERTION_KEY_RING_FROM_SECRET_STORE
+$env:DATA_AID_QUERY_ASSERTION_ACTIVE_KID = '2026-08'
 $env:DATA_AID_QUERY_ASSERTION_TTL_SECONDS = '30'
 $env:DATA_AID_QUERY_TIMEOUT_SECONDS = '30'
 $env:DATA_AID_QUERY_MAX_ROWS = '100'
-$env:DATA_AID_QUERY_MAX_RESULT_CHARS = '65536'
+$env:DATA_AID_QUERY_MAX_RESULT_BYTES = '1048576'
 $env:DATA_AID_QUERY_DEFAULT_LIMIT = '100'
+$env:DATA_AID_INGRESS_HOST = '127.0.0.1'
+$env:DATA_AID_INGRESS_PORT = '3081'
+$env:DATA_AID_INGRESS_PATH = '/v1/internal/data-query/turns'
+$env:DATA_AID_INGRESS_SERVICE_IDENTITY = 'dic-be'
+$env:DATA_AID_INGRESS_SERVICE_TOKEN = $env:DATA_AID_INGRESS_SERVICE_TOKEN_FROM_SECRET_STORE
+pnpm dsh --profile data-aid
 ```
 
-查询 broker 必须验证断言（`iss`、`aud`、`sub`、`jti`、`iat`、`exp`、会话与轮次绑定），一次性消费 `jti`，并在服务端执行认证 Principal 的表、列、join、谓词与行级权限。它是独立的授权服务，不是 `DATA_AID_MAXCOMPUTE_MCP_URL` 权威 bridge。两个 MCP 客户端对模型保持隐藏；DSH 工具是唯一能附加宿主派生 Principal envelope 的调用方。不要配置未认证的 SQL 端点作为此 broker。
+`DATA_AID_QUERY_ASSERTION_KEY_RING_FROM_SECRET_STORE` 必须预先保存 JSON object，其中每个值都是独立生成且至少 32 UTF-8 byte 的 secret；任何命令、仓库文件、日志或前端产物都不得包含 key material。`DATA_AID_QUERY_ASSERTION_KEY_RING` 保存验证重叠密钥，`DATA_AID_QUERY_ASSERTION_ACTIVE_KID` 选择签名密钥。Provider 会拒绝缺失密钥、`replace-with` 等显式占位短语、弱密钥、超过 60 秒的 TTL、超过 30 秒的 timeout、超过 100 行的上限、重定向、畸形响应和不完整结果。
+
+Query Broker 精确验证 `iss`、`aud`、`sub`、`jti`、`iat`、`exp`、`conversationId` 与 `turnId`，一次性消费 `jti`，并在服务端执行目录与行级授权。DSH 不接收 MaxCompute 凭据或 SQL 接口。[`cordis.patch.yml`](cordis.patch.yml) 是可选的空部署层；只能对 `data-aid` profile 中已有的配置行实施 id-targeted override，绝不能用它扩展 `web`。
+
+## 服务 ingress
+
+DIC-BE 使用 `POST`、`X-DSH-Service-Identity: dic-be`、`Authorization: Bearer <DATA_AID_INGRESS_SERVICE_TOKEN>`、`Content-Type: application/json` 及精确的 `{principal, conversationId, turnId, question}` 调用配置 path。profile 在读取有上限的 body 前完成认证，拒绝额外字段与错误服务 credential，使用随机内部 Session id 和默认 preset 创建 Agent，并在同步消息插入外围调用 `DataAidTurnPrincipalService.withTurn()`。只有通过安全检查的 `question` 进入 Session 与模型请求；Principal 和业务 id 留在宿主侧。将 `DATA_AID_TURN_CALLBACK_URL` 配置为仅 broker 挂载的 `/v1/internal/data-query/turn-state`，并注入独立的 `DATA_AID_TURN_CALLBACK_SERVICE_TOKEN`。message 被 claim 后 DSH 发送 `running`，`turn/end` 后发送一个严格终态投影；public DIC-BE workload 不挂载该回调路由。
+
+DIC-BE 通过本地 sidecar 访问 DSH 时保留默认 loopback bind。若它是独立 workload，则显式设置可达的 `DATA_AID_INGRESS_HOST`，并把 listener 放在可信 service mesh 或 reverse proxy 后：该 carrier 不终止 TLS，也不提供网络授权、rate limiting 或 secret rotation。`DATA_AID_INGRESS_SERVICE_TOKEN_FROM_SECRET_STORE` 必须独立生成且至少 32 UTF-8 byte，绝不能写入本文件。服务路由不接受旧的 MSE visitor-header／MaxCompute MCP 身份路径。

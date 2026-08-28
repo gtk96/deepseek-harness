@@ -1,72 +1,116 @@
-/** Public vocabulary for controlled semantic data queries. */
+/** Public types for controlled semantic data queries. */
 
-import type { AuthenticatedPrincipal } from '@deepseek-ai/dsh-authenticated-principal'
+import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { GkUserId } from '@deepseek-ai/dsh-authenticated-principal'
 
-/** A JSON value returned in one query result cell. */
+/** Opaque conversation identifier bound by the trusted turn host. */
+export type DataQueryConversationId = Branded<'DataQueryConversationId'>
+/** Opaque turn identifier bound by the trusted turn host. */
+export type DataQueryTurnId = Branded<'DataQueryTurnId'>
+
+/** A JSON value returned in one query result cell or supplied as a semantic filter operand. */
 export type DataQueryValue = null | boolean | number | string | readonly DataQueryValue[] | { readonly [key: string]: DataQueryValue }
 
-/** One semantic filter on an authorized dimension, value shape validated by the provider. */
+/** One semantic filter on a governed dimension; the provider validates operator arity and value types. */
 export interface DataQueryFilter {
-  /** Governed dimension the filter constrains. */
-  readonly dimension: string
-  /** Filter operation with the value arity it implies. */
-  readonly op: 'eq' | 'in' | 'between' | 'gte' | 'lte'
-  /** Operand: one value for `eq`/`gte`/`lte`, a non-empty list for `in`, two values for `between`. */
+  /** Governed dimension code. */
+  readonly dimensionCode: string
+  /** Allowed semantic comparison operation. */
+  readonly operator: 'eq' | 'in' | 'between' | 'gte' | 'lte'
+  /** Operand: one value for `eq`/`gte`/`lte`, a non-empty list for `in`, or two values for `between`. */
   readonly value: DataQueryValue | readonly DataQueryValue[]
 }
 
-/** Inclusive start / exclusive end on one governed date or time dimension. */
+/** Inclusive start and exclusive end on one governed date or time dimension. */
 export interface DataQueryTimeRange {
-  /** Governed date or time dimension the range constrains. */
-  readonly dimension: string
-  /** Inclusive lower bound; omitted means unbounded below. */
-  readonly start?: string | number
-  /** Exclusive upper bound; omitted means unbounded above. */
-  readonly end?: string | number
+  /** Governed date or time dimension code. */
+  readonly dimensionCode: string
+  /** Inclusive lower bound in the governed dimension's accepted representation. */
+  readonly startInclusive: string
+  /** Exclusive upper bound in the governed dimension's accepted representation. */
+  readonly endExclusive: string
 }
 
-/** Sort by one already-selected metric or dimension. */
+/** Sort specification for one selected metric or dimension. */
 export interface DataQueryOrderBy {
-  /** Selected metric or dimension code. */
-  readonly field: string
+  /** Already-selected metric or dimension code. */
+  readonly fieldCode: string
   /** Sort direction. */
   readonly direction: 'asc' | 'desc'
 }
 
-/** Host-owned request sent through the data-query capability. */
+/**
+ * Semantic query submitted by a Consumer.
+ *
+ * The request deliberately excludes Principal facts, conversation/turn ids, assertions, SQL,
+ * physical identifiers, service addresses, credentials, and execution controls. A model-facing
+ * Consumer may project only these fields into its tool schema.
+ */
 export interface DataQueryRequest {
   /** Dataset selected from the server-owned semantic catalog. */
   readonly datasetCode: string
-  /** Metrics requested from that dataset. */
+  /** One or more governed metrics requested from that dataset. */
   readonly metricCodes: readonly string[]
-  /** Dimensions requested from that dataset. */
+  /** Governed dimensions requested from that dataset; an empty list means no grouping. */
   readonly dimensionCodes: readonly string[]
-  /** Semantic filters on authorized dimensions, applied with the server-side row scope. */
+  /** Semantic filters combined with server-owned authorization filters. */
   readonly filters?: readonly DataQueryFilter[]
   /** Inclusive/exclusive bound on one governed date or time dimension. */
   readonly timeRange?: DataQueryTimeRange
-  /** Sort on already-selected metrics or dimensions. */
+  /** Sorts restricted to selected metrics or dimensions. */
   readonly orderBy?: readonly DataQueryOrderBy[]
-  /** Requested row count, still subject to the provider's deployment ceiling. */
+  /** Requested row count, subject to deployment and dataset ceilings. */
   readonly limit: number
-  /** Immutable authenticated Principal supplied by the host, never by model arguments. */
-  readonly principal: AuthenticatedPrincipal
 }
 
-/** Complete normalized tabular result returned to a Consumer. */
+/**
+ * Trusted host context for one provider call.
+ *
+ * A Consumer obtains these values from authenticated turn state and passes them separately from
+ * {@link DataQueryRequest}; model JSON must never supply or override them. Providers may derive a
+ * transport assertion from this context, but assertions never enter the request or result types.
+ */
+export interface DataQueryContext {
+  /** Stable authenticated user id used as the Query Broker assertion subject. */
+  readonly principalId: GkUserId
+  /** Opaque conversation id bound to the authenticated turn. */
+  readonly conversationId: DataQueryConversationId
+  /** Opaque turn id bound to the authenticated turn. */
+  readonly turnId: DataQueryTurnId
+}
+
+/**
+ * Complete safe result returned by a provider.
+ *
+ * Successful providers return exactly these five protocol fields. `complete` and `truncated` are
+ * literal guarantees; SQL, physical mappings, credentials, assertions, job ids, and diagnostics
+ * are not part of this result.
+ */
 export interface DataQueryResult {
   /** Column names in row order. */
   readonly columns: readonly string[]
   /** Complete rectangular rows. */
   readonly rows: readonly (readonly DataQueryValue[])[]
+  /** Number of rows, equal to `rows.length`. */
+  readonly rowCount: number
+  /** Confirms that the backend read and validated the complete result. */
+  readonly complete: true
+  /** Confirms that no rows were silently dropped. */
+  readonly truncated: false
 }
 
 /** One controlled-query backend registered with {@link DataQueryRuntime}. */
 export interface DataQueryProvider {
-  /** Stable registry id selected explicitly by deployment configuration. */
+  /** Stable registry id selected by runtime configuration or sole-provider auto-selection. */
   readonly id: string
   /** Cheap local availability check that makes no network request. */
   available(): boolean
-  /** Execute one request and honor cancellation for the complete operation. */
-  query(request: DataQueryRequest, signal?: AbortSignal): Promise<DataQueryResult>
+  /**
+   * Execute one semantic request for trusted turn context and honor cancellation for the complete operation.
+   * @param request - semantic fields only.
+   * @param context - trusted Principal and turn binding supplied outside model JSON.
+   * @param signal - optional cancellation signal.
+   * @returns a complete, untruncated five-field result.
+   */
+  query(request: DataQueryRequest, context: DataQueryContext, signal?: AbortSignal): Promise<DataQueryResult>
 }

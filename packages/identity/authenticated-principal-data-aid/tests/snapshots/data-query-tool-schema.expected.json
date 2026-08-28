@@ -1,0 +1,177 @@
+{
+  "name": "data_query",
+  "description": "Query authorized business data by semantic catalog codes. Supply one dataset, at least one metric, optional dimensions, filters, one time range, sorting, and a row limit. Physical tables, SQL, identity, permissions, endpoints, and credentials are never accepted.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "datasetCode": {
+        "type": "string",
+        "description": "Dataset code from the server-owned semantic catalog; 1–64 safe code characters.",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$"
+      },
+      "metricCodes": {
+        "type": "array",
+        "description": "Unique metric codes to aggregate; at least one.",
+        "minItems": 1,
+        "maxItems": 8,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$"
+        }
+      },
+      "dimensionCodes": {
+        "type": "array",
+        "description": "Unique dimension codes to group by; omitted means no grouping.",
+        "maxItems": 8,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$"
+        }
+      },
+      "filters": {
+        "type": "array",
+        "description": "Semantic filters; server-owned row scope is always applied separately.",
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dimension": {
+              "type": "string",
+              "description": "Authorized dimension code.",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$"
+            },
+            "op": {
+              "type": "string",
+              "description": "Filter operation.",
+              "enum": [
+                "eq",
+                "in",
+                "between",
+                "gte",
+                "lte"
+              ]
+            },
+            "value": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 4,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "description": "One finite string/number for eq/gte/lte, a non-empty list for in, or exactly two values for between."
+            }
+          },
+          "required": [
+            "dimension",
+            "op",
+            "value"
+          ]
+        }
+      },
+      "timeRange": {
+        "type": "object",
+        "description": "Inclusive start and exclusive end on one governed date or time dimension.",
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "type": "string",
+            "description": "Governed date or time dimension code.",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$"
+          },
+          "start": {
+            "type": "string",
+            "description": "Inclusive lower bound.",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "end": {
+            "type": "string",
+            "description": "Exclusive upper bound.",
+            "minLength": 1,
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "dimension",
+          "start",
+          "end"
+        ]
+      },
+      "orderBy": {
+        "type": "array",
+        "description": "Unique sorts on already-selected metrics or dimensions.",
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string",
+              "description": "Already-selected metric or dimension code.",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$"
+            },
+            "direction": {
+              "type": "string",
+              "description": "Sort direction.",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          "required": [
+            "field",
+            "direction"
+          ]
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Requested rows from 1 to 100; omitted uses the deployment default.",
+        "minimum": 1,
+        "maximum": 100
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "datasetCode",
+      "metricCodes"
+    ]
+  }
+}

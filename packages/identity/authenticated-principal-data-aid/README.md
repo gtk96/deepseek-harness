@@ -82,8 +82,7 @@ The configured MCP tool must accept `project`, `sql`, `async: false`, `maxCU`, a
 
 The generated SQL reads `ods_pl_gimp__gk_dingtalk_user_hourly` as `i` and `dmr_pty_staff_attribute_authority_hourly` as `a`. It requires `i.gk_userid = a.gimp_staff_id`, `i.dd_userid = a.dd_staff_id`, `i.status = '1'`, `a.staff_status = '1'`, and matching `dt`/`ht` values on both tables. It selects `i.gk_userid`, `a.gimp_staff_id`, `i.dd_userid`, `a.dd_staff_id`, `data_role` from `$.data_role`, `team_codes` from `$.area_ids`, and `data_org_code` from `$.data_org`. `LIMIT 2` preserves enough rows to distinguish zero, one, and multiple matches.
 
-The deployment query callback must return the complete result set produced by that limit; it must not silently page or truncate the rows before the resolver sees them.
-The resolver accepts exactly one row. It validates that both mapped ids and all permission values are non-empty strings, preserves string values such as `"0"`, and splits comma-separated team and organization codes. Zero rows, multiple rows, malformed rows, missing permission values, and query failures fail closed through `DataAidGatewayAuthenticator`.
+The deployment query callback must return the complete result set produced by that limit; it must not silently page or truncate the rows before the resolver sees them. The resolver accepts exactly one row. It validates that both mapped ids and all permission values are non-empty strings, preserves string values such as `"0"`, and splits comma-separated team and organization codes. Zero rows, multiple rows, malformed rows, missing permission values, and query failures fail closed through `DataAidGatewayAuthenticator`.
 
 ## Composition
 
@@ -113,13 +112,29 @@ The provider is a Service plugin and needs both hooks as trusted same-process co
 
 The provider registers `ctx.authenticatedPrincipal`. Typert Gateway authenticates the Fetch request before invocation and establishes the resulting Principal only for that invocation's returned lifetime.
 
-### MSE DingTalk deployment
+### MSE DingTalk provider
 
-`@deepseek-ai/dsh-authenticated-principal-data-aid/mse-gateway` exports `DataAidMseGatewayAuthenticator` for the MSE/enterprise SSO topology. Its `trustedProxyAddresses` option is a non-empty unique list of IP literals seen directly by DSH; IPv4-mapped IPv6 peer addresses normalize to their IPv4 literal. It rejects hostnames, proxy forwarding headers, synthetic Fetch requests, and missing bridge metadata. The production overlay is [`apps/cli/config/data-aid-mse`](../../../apps/cli/config/data-aid-mse/README.md). It requires an explicit authority partition and mounts its raw MaxCompute MCP bridge with `exposeTools: false`.
+`@deepseek-ai/dsh-authenticated-principal-data-aid/mse-gateway` exports `DataAidMseGatewayAuthenticator` for legacy or external MSE/enterprise SSO compositions that separately choose the optional MaxCompute MCP authority adapter. Its `trustedProxyAddresses` option is a non-empty unique list of IP literals seen directly by DSH; IPv4-mapped IPv6 peer addresses normalize to their IPv4 literal. It rejects hostnames, proxy forwarding headers, synthetic Fetch requests, and missing bridge metadata.
 
-### Loopback smoke test
+The shipped closed [`data-aid` profile](../../../packages/bundle/data-aid/README.md) does not mount this provider or any MCP package. DIC-BE owns browser identity and calls DSH through the separately authenticated strict turn ingress described below; browser visitor headers are not accepted on that service route.
 
-`@deepseek-ai/dsh-authenticated-principal-data-aid/loopback-test` exports `DataAidLoopbackTestAuthenticator` for the isolated DSH Web smoke test under [`apps/cli/config/data-aid-test`](../../../apps/cli/config/data-aid-test/README.md). DSH Web binds locally to `127.0.0.1`; its HTTP bridge presents authenticated plugins with the fixed internal origin `http://dsh.internal`, which the provider requires together with an explicit test secret. It cannot verify an MSE or reverse-proxy boundary and must never be used as a production Provider.
+### Strict DIC-BE turn ingress
+
+`@deepseek-ai/dsh-authenticated-principal-data-aid/dic-be-turn-ingress` is the production service transport mounted by the closed profile. It exposes one configured exact `POST` path. DIC-BE must send the configured `X-DSH-Service-Identity`, `Authorization: Bearer <service token>`, and `Content-Type: application/json`; authentication completes before the bounded body is read. The JSON object must contain exactly `principal`, `conversationId`, `turnId`, and `question`. Unknown fields, duplicate/coalesced service identity headers, malformed identifiers, non-normalized question text, oversized bodies, and wrong credentials are rejected without reflecting request values.
+
+The ingress keeps a bounded process-memory conversation-to-Agent map and accepted-turn table, creates each Agent with a random internal Session id and the profile's default preset/model, and inserts only a question that passes the credential, raw-SQL, and exact-business-id safety gate. It calls `DataAidTurnPrincipalService.withTurn()` synchronously around `agent.followup()`, so the three business identity values are available only to host-side authorization and never appear in model messages, tool arguments, system text, or Session events. An exact duplicate dispatch is accepted without creating another Agent turn; a conflicting reuse of `turnId` is rejected. Accepted requests return `202 {"accepted":true}` without identifiers; failures return only `{"accepted":false}`.
+
+When the bound message is actually claimed, the ingress sends a fixed-service-authenticated `running` callback to the configured DIC-BE broker URL. The matching durable `turn/end` produces exactly one terminal projection: final assistant text, an optional strict three-field controlled result, or a stable error code. Running and terminal deliveries are serialized and retried within configured bounds. Callback payloads use the process-memory binding rather than Session data, and answers/results containing credentials, raw SQL, or any exact binding value fail closed instead of being persisted. DIC-BE owns idempotent state validation and the accepted-turn completion watchdog, so a lost callback converges to `timed_out` rather than remaining non-terminal.
+
+`DATA_AID_INGRESS_HOST` defaults to `127.0.0.1`. A multi-service deployment may explicitly bind a reachable interface, but the shipped WebServer does not terminate TLS: a service mesh or reverse proxy must provide TLS, trusted-network policy, request-rate controls, and secret injection. `DATA_AID_INGRESS_SERVICE_TOKEN` must be a deployment-generated secret of at least 32 UTF-8 bytes. This service credential authenticates the DIC-BE workload; it does not replace DIC-BE's user authentication or the signed query assertion.
+
+### Data Aid workload health
+
+`@deepseek-ai/dsh-authenticated-principal-data-aid/data-aid-health` registers configurable exact `GET` routes on the dedicated listener. The shipped bundle defaults to `/healthz/live` for process liveness and `/healthz/ready` for completed Cordis composition readiness. Both return small non-cacheable JSON responses, reject other methods, and do not add a fallback, browser API, or generic public route. Configure `DATA_AID_HEALTH_LIVE_PATH` and `DATA_AID_HEALTH_READY_PATH` when the platform reserves different probe paths.
+
+### Loopback provider
+
+`@deepseek-ai/dsh-authenticated-principal-data-aid/loopback-test` remains available for isolated tests of the legacy browser-authentication path. DSH Web binds locally to `127.0.0.1`; its HTTP bridge presents authenticated plugins with the fixed internal origin `http://dsh.internal`, which the provider requires together with an explicit test secret. It cannot verify an MSE or reverse-proxy boundary and must never be used as a production Provider. The controlled broker smoke patch for the [`data-aid` profile](../../../apps/cli/config/data-aid-test/README.md) does not mount it.
 
 ## Local direct query test
 
@@ -127,7 +142,7 @@ The provider registers `ctx.authenticatedPrincipal`. Typert Gateway authenticate
 
 This capability intentionally has no Principal or authorization-broker dependency. It uses the local MCP service identity, so it is restricted to loopback-only use. The WSL composition lives at [`apps/cli/config/data-aid-direct-test`](../../../apps/cli/config/data-aid-direct-test/README.md); do not use it for shared, LAN, reverse-proxied, or public access.
 
-## Model Experience
+## Gateway behavior
 
 None, as gateway headers, resolver output, and authorization failures are model-hidden transport and service state.
 
@@ -135,18 +150,41 @@ None, as gateway headers, resolver output, and authorization failures are model-
 
 Independent of model-prefix caching; the provider never appends identity or permission fields to model-visible content.
 
-## Known Limitations and Deferred Work
+## Gateway deployment responsibilities
 
 - **MSE identity boundary is infrastructure-owned** — `DataAidMseGatewayAuthenticator` verifies the direct proxy peer, but MSE/enterprise SSO must still terminate TLS, perform DingTalk login, strip client identity headers, and inject verified headers before DSH receives the request.
 - **MCP tool contract is deployment-owned** — the optional adapter requires the deployed SELECT tool's raw name and its synchronous structured-result fields; unsupported tool inputs or result formats fail authentication rather than using text parsing.
-- **HTTP only in this integration** — ACP and other process boundaries need their own authenticated transport adapter and are intentionally not enabled by this provider.
+- **HTTP only in the gateway integration** — ACP and other process boundaries need their own authenticated transport adapter and are intentionally not enabled by this provider.
 
 ## Authorized model data queries
 
-`@deepseek-ai/dsh-authenticated-principal-data-aid/turn-principal` bridges a Principal only from synchronous, authenticated prompt insertion to the matching live Agent turn. It keeps references in process memory keyed by exact Agent and message identity, deletes queued references when a message is claimed or discarded, deletes the active reference at `agent/turn-stopping`, and clears every reference at Agent disposal. It never persists a Principal or scope in a Session or Agent event. A turn that claims different Principals is denied.
+`@deepseek-ai/dsh-authenticated-principal-data-aid/turn-principal` bridges only the complete service-authenticated dispatch binding — `principalId`, `conversationId`, and `turnId` — from synchronous Agent message insertion to the matching live turn. It keeps process-memory references by exact Agent and message identity, removes queued and active references on claim, discard, turn stop, Agent disposal, and service disposal, and denies conflicting bindings or any turn that mixes bound and unbound claimed messages in either order. It never derives business ids from a DSH Session or internal turn number.
 
-`@deepseek-ai/dsh-authenticated-principal-data-aid/data-query-tool` registers the model-visible `data_query` capability in the Data Aid agent preset. The model supplies only semantic catalog codes — a dataset, metrics, optional dimensions, filters, a time range, ordering, and a row limit — never SQL, physical identifiers, or execution configuration. The tool resolves the active Principal from the turn service and dispatches a host-owned `DataQueryRequest` through `ctx.dataQuery` to the explicitly configured provider. It rejects missing turn identity, conflicting turns, and provider failures.
+`@deepseek-ai/dsh-authenticated-principal-data-aid/data-query-tool` registers the sole model-visible `data_query` capability in the Data Aid agent preset. Its closed root accepts bounded semantic catalog codes — a dataset, unique metrics and dimensions, finite scalar filters, one time range, selected-field ordering, and a row limit — never SQL, physical identifiers, identity, endpoints, or execution configuration. The tool reads all three identity fields from the active trusted binding, dispatches a host-owned `DataQueryRequest` through `ctx.dataQuery`, and returns the broker's complete five-field table result. Missing, malformed, conflicting, or expired lifecycle state fails closed.
 
-Production composes the `@deepseek-ai/dsh-data-query-dic-be` provider, which signs a short-lived Principal assertion (`iss`, `aud`, `sub`, `jti`, `iat`, `exp`, turn binding) and posts the semantic request to an independent broker. The broker is the authorization decision point: it must verify the assertion, consume `jti` once, resolve the subject's data roles from authoritative sources, and enforce the dataset, table, column, join, predicate, and row authorizations server-side; DSH never parses or authorizes model SQL because the model never produces any. Do not point the provider at the `maxcompute-authority.execute_sql` bridge: that bridge exists only to authenticate a request and cannot grant business-data access.
+Production composes the `@deepseek-ai/dsh-data-query-dic-be` Provider. It signs an assertion whose header carries the active key-ring `kid` and whose payload is exactly `iss`, `aud`, `sub`, `jti`, `iat`, `exp`, `conversationId`, and `turnId`. It accepts only the strict `{columns, rows, rowCount, complete:true, truncated:false}` response and complete UTF-8 byte-bounded results. Every cell may be a nested JSON object or array, but every number must be finite and lossless, strings are bounded, objects and arrays must be plain dense JSON, and per-cell depth and node limits prevent pathological nesting. DIC-BE must verify the assertion, consume `jti` once, and enforce all dataset, field, predicate, and row authorization server-side. Do not point this Provider at `maxcompute-authority.execute_sql`; that bridge authenticates browser requests and cannot grant business-data access.
 
-The shipped `data-aid` preset contains only `data_query`. The production overlay requires the broker endpoint and assertion identity: `DATA_AID_QUERY_BASE_URL`, `DATA_AID_QUERY_PATH`, `DATA_AID_QUERY_ISSUER`, `DATA_AID_QUERY_AUDIENCE`, `DATA_AID_QUERY_ASSERTION_SECRET`, plus bounded `DATA_AID_QUERY_ASSERTION_TTL_SECONDS`, `DATA_AID_QUERY_TIMEOUT_SECONDS`, `DATA_AID_QUERY_MAX_ROWS`, `DATA_AID_QUERY_MAX_RESULT_CHARS`, and `DATA_AID_QUERY_DEFAULT_LIMIT`; no credential belongs in source control.
+The shipped `data-aid` profile starts from its own closed bundle; its preset contains exactly `data_query` and no raw MCP capability. The bundle reads `DATA_AID_QUERY_ASSERTION_KEY_RING` as a JSON object plus `DATA_AID_QUERY_ASSERTION_ACTIVE_KID`; the endpoint, assertion bounds, semantic limits, and dedicated service-ingress listener, path, identity, token, body, and question limits use the `DATA_AID_QUERY_*` and `DATA_AID_INGRESS_*` settings shown in `apps/cli/config/data-aid-mse/.env.example`. Keep key material out of source control.
+
+
+## Model Experience
+
+### `data_query`
+
+#### What the model sees
+
+The model sees one closed `data_query` semantic tool schema accepting governed dataset, metric, dimension, filter, time-range, ordering, and row-limit fields; its success value is the strict five-field table result, while safe failures expose no assertion, SQL, job id, endpoint, or identity.
+
+#### Token effect
+
+The stable schema contributes to the request prefix, and each call adds bounded arguments plus a result capped by the Provider's row and UTF-8 byte limits.
+
+#### KV Cache effect
+
+The schema is stable across turns and does not itself invalidate the prefix cache; per-turn calls and results extend only the conversation suffix.
+
+## Known Limitations and Deferred Work
+
+- **Ingress network controls remain deployment-owned** — the shipped strict route authenticates the fixed service identity and bearer secret, but its WebServer does not provide TLS, service-mesh policy, rate limiting, or secret rotation.
+- **Real broker and MaxCompute acceptance is external** — local HTTP and keyless snapshots prove DSH composition and protocol handling, not production authorization, network policy, or governed-data correctness.
+- **Direct query tools remain local-only** — the separate `data-aid-direct` preset uses service credentials without per-user business-data authorization and must not be exposed through shared or public listeners.

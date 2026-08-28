@@ -2,8 +2,9 @@
  * Enforced JSON Schema subset shared by tool outputs, generated Code Mode
  * types, subagents, and workflows. The subset accepts any JSON root, an
  * annotation-only schema for unconstrained JSON, one scalar `type`, object
- * `properties`/`required`/boolean `additionalProperties`, array `items`,
- * type-correct scalar `enum`/`const`, and exact-one `oneOf`.
+ * `properties`/`required`/boolean `additionalProperties`, array `items` and
+ * count/uniqueness constraints, string length/pattern constraints, inclusive
+ * numeric ranges, type-correct scalar `enum`/`const`, and exact-one `oneOf`.
  *
  * Unsupported or misplaced keywords reject rather than being accepted without
  * enforcement. Consumers that require an object root apply
@@ -41,6 +42,22 @@ export interface JsonSchemaNode {
   additionalProperties?: boolean
   /** Item schema (`type: 'array'` only); absent accepts any JSON item. */
   items?: JsonSchemaNode
+  /** Minimum array length (`type: 'array'` only). */
+  minItems?: number
+  /** Maximum array length (`type: 'array'` only). */
+  maxItems?: number
+  /** Whether array members must be structurally distinct (`type: 'array'` only). */
+  uniqueItems?: boolean
+  /** Minimum string code-point length (`type: 'string'` only). */
+  minLength?: number
+  /** Maximum string code-point length (`type: 'string'` only). */
+  maxLength?: number
+  /** ECMAScript Unicode regular expression (`type: 'string'` only). */
+  pattern?: string
+  /** Inclusive numeric lower bound (`type: 'number' | 'integer'` only). */
+  minimum?: number
+  /** Inclusive numeric upper bound (`type: 'number' | 'integer'` only). */
+  maximum?: number
   /** Allowed values for a scalar node. */
   enum?: JsonSchemaScalar[]
   /** The single allowed value for a scalar node. */
@@ -80,6 +97,14 @@ const CONSTRAINT_KEYWORDS = new Set([
   'required',
   'additionalProperties',
   'items',
+  'minItems',
+  'maxItems',
+  'uniqueItems',
+  'minLength',
+  'maxLength',
+  'pattern',
+  'minimum',
+  'maximum',
   'enum',
   'const',
 ])
@@ -197,7 +222,10 @@ type SchemaWalkTask =
   | { kind: 'object-tail'; node: Record<string, unknown>; path: string; properties: unknown }
 
 /** Keywords that are invalid beside `oneOf`. */
-const ONE_OF_SIBLING_KEYWORDS = ['properties', 'required', 'additionalProperties', 'items', 'enum', 'const'] as const
+const ONE_OF_SIBLING_KEYWORDS = [
+  'properties', 'required', 'additionalProperties', 'items', 'minItems', 'maxItems', 'uniqueItems',
+  'minLength', 'maxLength', 'pattern', 'minimum', 'maximum', 'enum', 'const',
+] as const
 
 /** Validate object-only fields after its property schemas have been visited. */
 function checkObjectSchemaTail(
@@ -264,7 +292,7 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
         }
         continue
       }
-      violations.push(`${path}.${key} is not a supported keyword (subset: type/oneOf/properties/required/additionalProperties/items/enum/const + annotations)`)
+      violations.push(`${path}.${key} is not a supported keyword (subset: type/oneOf/object/array/string/numeric constraints/enum/const + annotations)`)
     }
     if (Object.hasOwn(node, 'description') && typeof node.description !== 'string') {
       violations.push(`${path}.description must be a string`)
@@ -312,6 +340,14 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
       required: ['object'],
       additionalProperties: ['object'],
       items: ['array'],
+      minItems: ['array'],
+      maxItems: ['array'],
+      uniqueItems: ['array'],
+      minLength: ['string'],
+      maxLength: ['string'],
+      pattern: ['string'],
+      minimum: ['number', 'integer'],
+      maximum: ['number', 'integer'],
       enum: ['string', 'number', 'integer', 'boolean', 'null'],
       const: ['string', 'number', 'integer', 'boolean', 'null'],
     }
@@ -319,6 +355,43 @@ function checkSchemaNode(root: unknown, rootPath: string, violations: string[], 
       if (Object.hasOwn(node, key) && !types.includes(schemaType)) {
         violations.push(`${path}.${key} is not supported on type "${schemaType}"`)
       }
+    }
+    for (const [minimumKey, maximumKey] of [
+      ['minItems', 'maxItems'],
+      ['minLength', 'maxLength'],
+    ] as const) {
+      for (const key of [minimumKey, maximumKey]) {
+        if (Object.hasOwn(node, key)
+          && (!Number.isSafeInteger(node[key]) || (node[key] as number) < 0)) {
+          violations.push(`${path}.${key} must be a non-negative safe integer`)
+        }
+      }
+      if (typeof node[minimumKey] === 'number' && typeof node[maximumKey] === 'number'
+        && node[minimumKey] > node[maximumKey]) {
+        violations.push(`${path}.${minimumKey} must be no greater than ${path}.${maximumKey}`)
+      }
+    }
+    if (Object.hasOwn(node, 'uniqueItems') && typeof node.uniqueItems !== 'boolean') {
+      violations.push(`${path}.uniqueItems must be a boolean`)
+    }
+    if (Object.hasOwn(node, 'pattern')) {
+      if (typeof node.pattern !== 'string') {
+        violations.push(`${path}.pattern must be a string`)
+      } else {
+        try {
+          new RegExp(node.pattern, 'u')
+        } catch {
+          violations.push(`${path}.pattern must be a valid ECMAScript Unicode regular expression`)
+        }
+      }
+    }
+    for (const key of ['minimum', 'maximum'] as const) {
+      if (Object.hasOwn(node, key) && !isJsonNumber(node[key])) {
+        violations.push(`${path}.${key} must be a finite JSON number`)
+      }
+    }
+    if (isJsonNumber(node.minimum) && isJsonNumber(node.maximum) && node.minimum > node.maximum) {
+      violations.push(`${path}.minimum must be no greater than ${path}.maximum`)
     }
 
     switch (schemaType) {
@@ -393,6 +466,7 @@ export function assertSupportedJsonSchema(schema: unknown): asserts schema is Js
  * subagent and workflow structured outputs.
  * @param schema - untrusted caller-supplied schema.
  * @returns Assertion that the schema belongs to the supported subset and has an object root.
+
  */
 export function assertObjectJsonSchema(schema: unknown): asserts schema is ObjectJsonSchema {
   const violations: string[] = []
@@ -479,6 +553,108 @@ function checkScalarValue(node: JsonSchemaNode, value: unknown, path: string): s
   }
   if (Object.hasOwn(node, 'const') && value !== node.const) {
     return [`"${diagnosticPath(path)}" must be ${JSON.stringify(node.const)}`]
+  }
+  return []
+}
+
+/** Validate enforced string length and pattern constraints. */
+function checkStringConstraints(node: JsonSchemaNode, value: string, path: string): string[] {
+  const length = Array.from(value).length
+  if (node.minLength !== undefined && length < node.minLength) {
+    return [`"${diagnosticPath(path)}" must contain at least ${node.minLength} characters`]
+  }
+  if (node.maxLength !== undefined && length > node.maxLength) {
+    return [`"${diagnosticPath(path)}" must contain at most ${node.maxLength} characters`]
+  }
+  if (node.pattern !== undefined && !new RegExp(node.pattern, 'u').test(value)) {
+    return [`"${diagnosticPath(path)}" must match pattern ${JSON.stringify(node.pattern)}`]
+  }
+  return []
+}
+
+/** Validate enforced inclusive numeric range constraints. */
+function checkNumericConstraints(node: JsonSchemaNode, value: number, path: string): string[] {
+  if (node.minimum !== undefined && value < node.minimum) {
+    return [`"${diagnosticPath(path)}" must be greater than or equal to ${node.minimum}`]
+  }
+  if (node.maximum !== undefined && value > node.maximum) {
+    return [`"${diagnosticPath(path)}" must be less than or equal to ${node.maximum}`]
+  }
+  return []
+}
+
+/** Return a key-order-independent identity for one lossless JSON value. */
+function canonicalJsonKey(root: unknown): string {
+  type Task =
+    | { readonly kind: 'value'; readonly value: unknown }
+    | { readonly kind: 'token'; readonly value: string }
+    | { readonly kind: 'leave'; readonly value: object }
+  const tasks: Task[] = [{ kind: 'value', value: root }]
+  const active = new Set<object>()
+  const tokens: string[] = []
+  for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
+    if (task.kind === 'token') {
+      tokens.push(task.value)
+      continue
+    }
+    if (task.kind === 'leave') {
+      active.delete(task.value)
+      continue
+    }
+    const value = task.value
+    if (value === null) {
+      tokens.push('n;')
+    } else if (typeof value === 'boolean') {
+      tokens.push(value ? 'b1;' : 'b0;')
+    } else if (typeof value === 'number') {
+      tokens.push(`d${String(value)};`)
+    } else if (typeof value === 'string') {
+      tokens.push(`s${value.length}:${value}`)
+    } else if (Array.isArray(value)) {
+      if (active.has(value)) throw new TypeError('uniqueItems received a cyclic value')
+      active.add(value)
+      tasks.push({ kind: 'leave', value })
+      tasks.push({ kind: 'token', value: ']' })
+      for (let index = value.length - 1; index >= 0; index--) {
+        tasks.push({ kind: 'value', value: value[index] })
+        tasks.push({ kind: 'token', value: ',' })
+      }
+      tokens.push('a[')
+    } else if (isPlainJsonRecord(value)) {
+      if (active.has(value)) throw new TypeError('uniqueItems received a cyclic value')
+      active.add(value)
+      const keys = Object.keys(value).sort()
+      tasks.push({ kind: 'leave', value })
+      tasks.push({ kind: 'token', value: '}' })
+      for (let index = keys.length - 1; index >= 0; index--) {
+        const key = keys[index]
+        if (key === undefined) continue
+        tasks.push({ kind: 'value', value: value[key] })
+        tasks.push({ kind: 'token', value: `k${key.length}:${key}=` })
+      }
+      tokens.push('o{')
+    } else {
+      throw new TypeError('uniqueItems received a non-JSON value')
+    }
+  }
+  return tokens.join('')
+}
+
+/** Validate array count and structural uniqueness constraints. */
+function checkArrayConstraints(node: JsonSchemaNode, value: unknown[], path: string): string[] {
+  if (node.minItems !== undefined && value.length < node.minItems) {
+    return [`"${diagnosticPath(path)}" must contain at least ${node.minItems} items`]
+  }
+  if (node.maxItems !== undefined && value.length > node.maxItems) {
+    return [`"${diagnosticPath(path)}" must contain at most ${node.maxItems} items`]
+  }
+  if (node.uniqueItems === true) {
+    const seen = new Set<string>()
+    for (const item of value) {
+      const key = canonicalJsonKey(item)
+      if (seen.has(key)) return [`"${diagnosticPath(path)}" must contain unique items`]
+      seen.add(key)
+    }
   }
   return []
 }
@@ -598,12 +774,13 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
           frame.children = children
           frame.childIndex = 0
           frame.violations = []
+          frame.tailViolations = checkArrayConstraints(frame.node, frame.value, frame.path)
           frame.phase = 'children'
           break
         }
         case 'string':
           finish(typeof frame.value === 'string'
-            ? checkScalarValue(frame.node, frame.value, frame.path)
+            ? [...checkStringConstraints(frame.node, frame.value, frame.path), ...checkScalarValue(frame.node, frame.value, frame.path)]
             : [`"${diagnosticPath(frame.path)}" must be a string`])
           break
         case 'number':
@@ -611,12 +788,12 @@ function checkValue(schema: JsonSchemaNode, value: unknown, path: string): strin
             ? [`"${diagnosticPath(frame.path)}" must be a number`]
             : !isJsonNumber(frame.value)
               ? [`"${diagnosticPath(frame.path)}" must be a finite JSON number`]
-              : checkScalarValue(frame.node, frame.value, frame.path))
+              : [...checkNumericConstraints(frame.node, frame.value, frame.path), ...checkScalarValue(frame.node, frame.value, frame.path)])
           break
         case 'integer':
           finish(!isJsonNumber(frame.value) || !Number.isInteger(frame.value)
             ? [`"${diagnosticPath(frame.path)}" must be an integer`]
-            : checkScalarValue(frame.node, frame.value, frame.path))
+            : [...checkNumericConstraints(frame.node, frame.value, frame.path), ...checkScalarValue(frame.node, frame.value, frame.path)])
           break
         case 'boolean':
           finish(typeof frame.value === 'boolean'
