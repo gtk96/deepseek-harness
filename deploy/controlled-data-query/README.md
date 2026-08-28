@@ -1,5 +1,7 @@
 # Controlled data-query deployment artifacts
 
+English | [中文](README.zh.md)
+
 This directory contains commit-ready test-environment artifacts only. No database, image builder, registry, secret manager, Docker daemon, or Kubernetes cluster is contacted by the offline checks. Task 14 remains incomplete until operators render these files with real image digests, apply them to the designated test cluster, run the DDL Job, and capture the cluster verification evidence.
 
 ## Platform prerequisites

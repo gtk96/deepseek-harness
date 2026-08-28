@@ -1,9 +1,10 @@
 /** DIC-BE lifecycle callback projection tests. */
 
 import { describe, expect, it } from 'vitest'
-import { CallId, createAssistantMessage, createToolResultMessage } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, createAssistantMessage, createToolResultMessage } from '@deepseek-ai/dsh-llm'
 import type { GkUserId } from '@deepseek-ai/dsh-authenticated-principal'
 import type { DataQueryConversationId, DataQueryTurnId } from '@deepseek-ai/dsh-data-query'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import {
   assertSafeTurnInput,
@@ -23,7 +24,7 @@ function tracked(question = 'Show governed sales.'): TrackedDicBeTurn {
 }
 
 function session(): Session {
-  return Session.create(SessionId(`callback-${crypto.randomUUID()}`))
+  return Session.create(SessionId(`callback-${randomUUID()}`))
 }
 
 function appendAnswer(value: Session, text: string): void {
@@ -38,7 +39,7 @@ function appendAnswer(value: Session, text: string): void {
 }
 
 function appendQueryResult(value: Session, outcome: 'success' | 'timeout' | 'denied'): void {
-  const callId = CallId('query-call')
+  const callId = ToolCallId('query-call')
   value.append('tool/call', {
     turn: 1,
     step: 1,

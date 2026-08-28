@@ -1,10 +1,25 @@
+---
+description: "Request-local authenticated Principal service definition for trusted DSH host transports and authorization consumers."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-authenticated-principal
 
 English | [中文](README.zh.md)
 
+## Summary
+
 `@deepseek-ai/dsh-authenticated-principal` is the Service Definition for an authenticated account at the DSH host. `AuthenticatedPrincipalService` exposes `ctx.authenticatedPrincipal.current()`, `require()`, `withPrincipal()`, and `withoutPrincipal()`; a provider supplies `authenticate(request, signal)` and owns the deployment's identity verification and permission lookup.
 
 The Principal is request-local process state. It starts at a trusted transport request, carries the existing data-aid identity mapping and authorization facts, and is cleared after the returned operation settles. It is never copied into a Session, message, anonymous user id, Agent ownership field, Typert wire argument, or model request. `freezeAuthenticatedPrincipal()` makes the Principal record and its permission arrays shallowly immutable before publication.
+
+## Table of Contents
+
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
 
 ## Principal fields
 
@@ -36,6 +51,7 @@ A Consumer must not accept `user_id`, `data_role`, team, or organization overrid
 
 `withPrincipal()` tracks the returned synchronous value or Promise. Service disposal rejects new scopes, waits for returned operations to settle, and only then disables `AsyncLocalStorage`; detached work remains owned by the subsystem that detached it and must not retain authorization capabilities.
 
+<a id="model-experience"></a>
 ## Model Experience
 
 None, as the Principal and transport request are model-hidden and no authenticated account or permission field is appended to a prompt or session log.
@@ -46,6 +62,18 @@ Independent of model-prefix caching; authentication metadata is kept outside mod
 
 ## Known Limitations and Deferred Work
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **Provider trust is deployment-owned** — the Service Definition does not decide whether a forwarded header came from MSE, a trusted reverse proxy, or a signed transport; a provider must verify that condition before parsing identity.
 - **Permission rules remain outside DSH** — the package carries resolver output but does not contain the existing data-aid SQL, so a deployment must supply a resolver and fail closed when mapping or authority data is unavailable.
 - **Only process-local propagation is provided** — worker, child-process, queue, and later HTTP boundaries must authenticate and materialize a new explicit Principal rather than expecting ALS propagation.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers ? click to expand</summary>
+
+None.
+
+</details>

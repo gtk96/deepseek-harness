@@ -4,7 +4,7 @@
 
 - id: data-query-dic-be
   config:
-    baseURL: !!js process.env.DATA_AID_QUERY_BASE_URL ?? 'http://127.0.0.1:3901'
+    baseURL: http://127.0.0.1:3901
     path: !!js process.env.DATA_AID_QUERY_PATH ?? '/query'
     issuer: dsh-test
     audience: dic-be-test

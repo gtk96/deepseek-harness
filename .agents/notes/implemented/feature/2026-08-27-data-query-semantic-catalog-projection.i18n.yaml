@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-27-data-query-semantic-catalog-projection.md
+2026-08-27-data-query-semantic-catalog-projection.md: 48d629c907fb761f8344256ca8e07e52869283c5
+2026-08-27-data-query-semantic-catalog-projection.zh.md: e6168f8269d794a818b7a4c4bdd26ddf15816a46

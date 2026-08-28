@@ -9,7 +9,7 @@ import {
   type AuthenticatedPrincipal,
 } from '@deepseek-ai/dsh-authenticated-principal'
 import { McpClientRegistry } from '@deepseek-ai/dsh-mcp-client/mcp-clients'
-import { bridge } from '@deepseek-ai/dsh-client-connection'
+import { bridge } from '@deepseek-ai/dsh-client-connection/src/http-bridge.ts'
 import { DataAidMseGatewayAuthenticator } from '../src/mse-gateway.ts'
 import type { DataAidMseGatewayAuthenticatorOptions } from '../src/mse-gateway.ts'
 

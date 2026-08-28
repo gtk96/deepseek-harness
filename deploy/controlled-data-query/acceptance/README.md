@@ -1,5 +1,7 @@
 # Controlled data-query acceptance input
 
+English | [中文](README.zh.md)
+
 This directory contains only the schema example for Tasks 15 and 16. `input.template.json` is intentionally invalid and contains no real project, table, subject, policy, SQL, result, credential, or evidence path. A validator success proves that an input is internally complete; it does not prove that governance rows were published, a cluster was deployed, MaxCompute jobs ran, or Tasks 15/16 passed.
 
 ## Prepare an input outside Git

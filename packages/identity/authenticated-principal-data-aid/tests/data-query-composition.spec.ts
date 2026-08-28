@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -21,7 +21,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as Persona from '@deepseek-ai/dsh-persona'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import LlmRuntime, {
-  CallId,
+  ToolCallId,
   LlmAdapter,
   MessageId,
 } from '@deepseek-ai/dsh-llm'
@@ -42,7 +42,7 @@ import * as dataQueryTool from '../src/data-query-tool.ts'
 import * as dicBeTurnIngress from '../src/dic-be-turn-ingress.ts'
 import DataAidTurnPrincipalService from '../src/turn-principal.ts'
 import type { DataAidTrustedTurnBinding } from '../src/types.ts'
-import { sensitiveContentKinds } from './sensitive-content.ts'
+import { sensitiveContentKinds } from '../../../../apps/cli/tests/profiles/headless/tests/fixtures/data-aid/sensitive-content.ts'
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url))
 const installAnchor = join(repoRoot, 'apps/cli/package.json')
@@ -167,6 +167,11 @@ async function loadComposition(baseURL: string): Promise<Context> {
   expect(profile.layers.map(layer => layer.packageName)).toEqual(['@deepseek-ai/dsh-data-aid'])
   const configPath = join(profile.dir, 'cordis.yml')
   await writeFile(configPath, '[]\n')
+  for (const packageName of ['dsh-persona', 'dsh-authenticated-principal-data-aid']) {
+    const packageDir = join(profile.dir, 'node_modules', '@deepseek-ai', packageName)
+    await mkdir(packageDir, { recursive: true })
+    await writeFile(join(packageDir, 'package.json'), `${JSON.stringify({ name: `@deepseek-ai/${packageName}` })}\n`)
+  }
   const profilePatches: PatchOptions[] = [
     ...profile.layers.flatMap(layer => layer.patches),
     ...profile.patches,
@@ -184,7 +189,7 @@ async function loadComposition(baseURL: string): Promise<Context> {
   expect(composedNames.some(name => /(?:direct-query|mse-gateway|maxcompute|hologres)/u.test(name))).toBe(false)
 
   context = new Context()
-  context.baseUrl = pathToFileURL(profile.dir).href + '/'
+  context.baseUrl = pathToFileURL(installAnchor).href
   await context.plugin(Loader)
   context.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
@@ -262,7 +267,7 @@ afterEach(async () => {
   savedEnvironment.clear()
 })
 
-describe.sequential('dedicated data-aid real Loader composition', () => {
+describe('dedicated data-aid real Loader composition', { concurrent: false }, () => {
   it('accepts only strict service-authenticated HTTP turns without exposing business ids to the model', async () => {
     const ctx = await loadComposition(await listen())
     const createdAgents: Agent[] = []
@@ -478,7 +483,7 @@ describe.sequential('dedicated data-aid real Loader composition', () => {
     ctx.emit('agent/inbox/claimed', { agent, message: item, turn: 1 })
 
     const result = await ctx.tools.execute({
-      callId: CallId('composition-call'),
+      callId: ToolCallId('composition-call'),
       name: 'data_query',
       arguments: { datasetCode: 'sales_daily', metricCodes: ['order_count'] },
       agent,

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-authenticated-principal-data-aid",
   "description": "Data-aid gateway Principal provider and authorized query capability",
-  "version": "0.1.1-rc.2",
+  "version": "0.1.2-alpha.1",
   "publishConfig": {
     "access": "public"
   },
@@ -108,13 +108,13 @@
     "@deepseek-ai/dsh-host-webserver": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
-    "@deepseek-ai/dsh-loader-smoke": "workspace:^",
     "@deepseek-ai/dsh-mcp-client": "workspace:^",
     "@deepseek-ai/dsh-persona": "workspace:^",
     "@deepseek-ai/dsh-scope": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/dsh-util-crypto": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

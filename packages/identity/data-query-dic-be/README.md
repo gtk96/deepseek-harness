@@ -1,8 +1,23 @@
+---
+description: "Credentialed DIC-BE HTTP provider for complete, bounded controlled semantic query results."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-data-query-dic-be
 
 English | [中文](README.zh.md)
 
+## Summary
+
 This package is the credentialed DIC-BE HTTP Provider for `ctx.dataQuery`. It sends one fixed-path `POST` with native `fetch`, rejects redirects, shares cancellation and deadline with response-body reads, and accepts only complete bounded JSON tables. A DIC-BE business rejection is accepted only as the exact unified `{code:200,bizCode:"DQ_*",msg,data:{}}` envelope; the Provider preserves only `bizCode` as a `DataQueryError` code and never exposes the broker message or data.
+
+## Table of Contents
+
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
 
 ## Configuration
 
@@ -12,6 +27,7 @@ The JWT header is exactly `{alg:"HS256",typ:"JWT",kid}`. Its payload is exactly 
 
 A success response has exactly five fields: `{columns, rows, rowCount, complete:true, truncated:false}`. Columns must be unique strings, rows rectangular, and `rowCount` exact. A cell may contain nested plain dense JSON objects and arrays; every number is finite and lossless, strings are bounded, and iterative per-cell depth/node limits reject pathological nesting. Extra fields, non-JSON content, redirects, truncation, oversized row counts, and malformed values fail closed. Both the complete HTTP document and normalized result are capped by UTF-8 bytes, including exact-boundary and multibyte handling.
 
+<a id="model-experience"></a>
 ## Model Experience
 
 Indirectly, through the Data Aid `data_query` Consumer; this Provider contributes no prompt or tool schema.
@@ -22,5 +38,17 @@ No direct invalidation; assertions and transport data never enter model-visible 
 
 ## Known Limitations and Deferred Work
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **HS256 rotation is coordinated externally** — DSH selects an active `kid`, but deployment must keep DIC-BE's verification ring synchronized and retire old keys after the overlap window.
 - **Broker authorization is external** — this Provider proves the caller context and validates transport results; DIC-BE remains responsible for replay protection and all dataset, field, predicate, and row authorization.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers ? click to expand</summary>
+
+None.
+
+</details>

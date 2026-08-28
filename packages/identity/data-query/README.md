@@ -1,10 +1,25 @@
+---
+description: "Provider-neutral runtime for controlled semantic data queries with host-owned trusted turn context."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-data-query
 
 English | [中文](README.zh.md)
 
+## Summary
+
 `DataQueryRuntime` (`ctx.dataQuery`) is the Service Definition and provider runtime for controlled semantic data queries. It accepts only governed semantic requests; trusted identity and turn bindings travel in a separate host-owned `DataQueryContext`, while transport assertions remain private to Service Providers.
 
 The type and selection reference is [the data-query subsystem page](../../../docs/subsystems/data-query.md). The [Service Definition decision](../../../.agents/notes/implemented/architecture/2026-08-25-data-query-service-definition.md) records why request, trusted context, and transport assertion are separate.
+
+## Table of Contents
+
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
 
 ## Configuration
 
@@ -24,6 +39,7 @@ Provider-selection failures are `DataQueryError` instances with stable codes: `D
 
 A Service Provider implements `DataQueryProvider`, uses a stable normalized id, performs a cheap local `available()` check, honors cancellation for the complete operation, and returns only a complete untruncated result. A network provider owns assertion creation and wire validation; neither concern belongs in this Service Definition.
 
+<a id="model-experience"></a>
 ## Model Experience
 
 Indirectly, through a Consumer that projects `DataQueryRequest` as a model tool and logs the resulting tool call and result.
@@ -34,5 +50,17 @@ No direct invalidation; the Consumer owns every model-visible schema, request, a
 
 ## Known Limitations and Deferred Work
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **No model or wire validation** — this typed same-process Service Definition does not parse model JSON or remote responses; the Consumer and network Service Provider must validate their respective untrusted inputs.
 - **One selected provider per call** — callers cannot choose a provider in `DataQueryRequest`; deployment config or sole-available-provider selection owns routing.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers ? click to expand</summary>
+
+None.
+
+</details>

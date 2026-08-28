@@ -1,10 +1,25 @@
+---
+description: "Data Aid authentication, trusted-turn ingress, callbacks, health probes, and controlled-query adapters for DIC-BE deployments."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-authenticated-principal-data-aid
 
 [English](README.md) | 中文
 
+## 概述
+
 `DataAidGatewayAuthenticator` 是 `@deepseek-ai/dsh-authenticated-principal` 的 data-aid Service Provider。它先执行部署提供的网关信任校验，再严格解析现有的 `gk-service-user` 和可选 `gk-service-app` header，随后调用拥有既有身份映射与鉴权 SQL／服务的 resolver。
 
 本包有意不把 `X-Forwarded-Host` 或 `gk-service-user` 的存在本身当作证明。`DataAidMseGatewayAuthenticator` 提供受支持的 MSE 部署验证器：只有当 `@deepseek-ai/dsh-client-connection` 为 Fetch request 记录了已配置的直连 TCP proxy IP 时，才接受访问者 header。MSE 或企业 SSO proxy 负责钉钉登录、移除浏览器传入的身份 header，并向上游注入已验证的 header。校验返回 false、访问者 header 缺失或格式错误、身份映射缺失、权限事实缺失或 resolver 失败，全部按认证失败拒绝，不会降级为匿名身份。
+
+## 目录
+
+- [模型体验](#model-experience)
+- [已知限制](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+-----
 
 ## 网关访问者解析
 
@@ -167,6 +182,7 @@ ingress 在进程内保存有界的 conversation→Agent 映射和已接受 turn
 随附的 `data-aid` profile 从自身的封闭 bundle 启动；其 preset 精确只含 `data_query`，不含任何 raw MCP 能力。bundle 把 `DATA_AID_QUERY_ASSERTION_KEY_RING` 读取为 JSON object，并配合 `DATA_AID_QUERY_ASSERTION_ACTIVE_KID`；endpoint、assertion 上限、语义限制，以及专用服务 ingress 的 listener、path、identity、token、body 与 question 上限，使用 `apps/cli/config/data-aid-mse/.env.example` 展示的 `DATA_AID_QUERY_*` 和 `DATA_AID_INGRESS_*` 设置。不得将 key material 写入源码管理。
 
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### `data_query`
@@ -185,6 +201,18 @@ schema 在 turn 之间保持稳定，本身不会使前缀 cache 失效；每轮
 
 ## 已知限制与暂缓事项
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **Ingress 网络控制仍由部署持有**——随附严格路由会认证固定服务身份与 bearer secret，但其 WebServer 不提供 TLS、service-mesh policy、rate limiting 或 secret rotation。
 - **真实 broker 与 MaxCompute 验收属于外部工作**——本地 HTTP 与 keyless snapshot 只证明 DSH composition 和协议处理，不证明生产授权、网络策略或治理数据正确性。
 - **直连问数工具仍仅限本地**——独立 `data-aid-direct` preset 使用缺少逐用户业务数据授权的 service credential，不得通过共享或公网 listener 暴露。
+
+<a id="dev-note"></a>
+### 开发备注
+
+<details>
+<summary>维护者工作上下文——点击展开</summary>
+
+无。
+
+</details>

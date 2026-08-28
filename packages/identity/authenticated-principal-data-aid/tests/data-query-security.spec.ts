@@ -17,7 +17,7 @@ import { AuthenticatedPrincipalService, freezeAuthenticatedPrincipal } from '@de
 import type { AuthenticatedPrincipal } from '@deepseek-ai/dsh-authenticated-principal'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { UserMessage } from '@deepseek-ai/dsh-session'
-import { MessageId, CallId } from '@deepseek-ai/dsh-llm'
+import { MessageId, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { buildRequest, apply as applyDataAidQueryTool, type Config } from '../src/data-query-tool.ts'
 import { DataAidTurnPrincipalService } from '../src/turn-principal.ts'
 import type {} from '@deepseek-ai/dsh-agent'
@@ -289,7 +289,7 @@ describe('data_query tool execution', () => {
 
     const signal = new AbortController().signal
     const result = await ctx.tools.execute({
-      callId: CallId('data-query-tool-call'),
+      callId: ToolCallId('data-query-tool-call'),
       name: 'data_query',
       arguments: {
         datasetCode: 'sales_daily',
@@ -323,7 +323,7 @@ describe('data_query tool execution', () => {
     }])
 
     const extra = await ctx.tools.execute({
-      callId: CallId('data-query-extra'),
+      callId: ToolCallId('data-query-extra'),
       name: 'data_query',
       arguments: { datasetCode: 'sales_daily', metricCodes: ['order_count'], sql: 'SELECT 1' },
       agent,
@@ -334,7 +334,7 @@ describe('data_query tool execution', () => {
 
     ctx.emit('agent/turn-stopping', { agent, turn: 9, signal })
     const denied = await ctx.tools.execute({
-      callId: CallId('data-query-tool-after-turn'),
+      callId: ToolCallId('data-query-tool-after-turn'),
       name: 'data_query',
       arguments: { datasetCode: 'sales_daily', metricCodes: ['order_count'] },
       agent,

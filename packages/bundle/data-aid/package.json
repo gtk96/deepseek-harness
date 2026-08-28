@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-data-aid",
   "description": "Closed profile bundle for controlled semantic data queries through DIC-BE",
-  "version": "0.1.1-rc.2",
+  "version": "0.1.2-alpha.1",
   "publishConfig": {
     "access": "public"
   },

@@ -222,7 +222,11 @@ export function buildTerminalCallback(
   }
 }
 
-/** Build one running callback from process-memory binding only. */
+/**
+ * Build one running callback from process-memory binding only.
+ * @param binding - trusted Principal and external turn identity.
+ * @returns callback body reporting that the accepted turn is running.
+ */
 export function buildRunningCallback(binding: DataAidTrustedTurnBinding): TurnCallbackBody {
   return { ...callbackPrefix(binding), status: 'running' }
 }

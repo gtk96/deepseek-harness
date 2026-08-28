@@ -160,6 +160,85 @@ interface DataQueryProvider {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxauthenticatedprincipal--authenticatedprincipalservice-abstract-seam"></a>
+
+### `ctx.authenticatedPrincipal` — `AuthenticatedPrincipalService` (abstract seam)
+
+Service Definition and lifecycle owner for authenticated Principal providers. The provider subclass implements authenticate; this base class owns only request-local scope and never stores a Principal in a session or Agent.
+
+```ts cordis-catalog
+/**
+ * Authenticate one transport request into a complete Principal.
+ * @param request - standard Fetch request supplied by the transport adapter.
+ * @param signal - request cancellation signal.
+ * @returns the authenticated Principal.
+ */
+abstract authenticate(request: Request, signal: AbortSignal): Promise<AuthenticatedPrincipal>
+
+/**
+ * Read the Principal inherited by the current asynchronous operation.
+ * @returns the current Principal, or `undefined` outside an authenticated scope.
+ * @throws after this service has been disposed.
+ */
+current(): AuthenticatedPrincipal | undefined
+
+/**
+ * Read the current Principal and fail when the operation is unauthenticated.
+ * @returns the current authenticated Principal.
+ * @throws when no Principal is active or this service has been disposed.
+ */
+require(): AuthenticatedPrincipal
+
+/**
+ * Run an operation with one exact request-local Principal.
+ * @param principal - Principal to inherit; `undefined` explicitly clears an inherited scope.
+ * @param operation - synchronous or asynchronous operation to invoke.
+ * @returns the exact value or Promise returned by `operation`.
+ * @throws when this service is closing/disposed or when `operation` throws.
+ */
+withPrincipal<T>(principal: AuthenticatedPrincipal | undefined, operation: () => T): T
+
+/**
+ * Run an operation without inheriting an ambient Principal.
+ * @param operation - synchronous or asynchronous operation to invoke.
+ * @returns the exact value or Promise returned by `operation`.
+ */
+withoutPrincipal<T>(operation: () => T): T
+```
+
+Source: [`packages/identity/authenticated-principal/src/index.ts`](../../packages/identity/authenticated-principal/src/index.ts)
+
+<a id="ctxdataaidturnprincipal--dataaidturnprincipalservice"></a>
+
+### `ctx.dataAidTurnPrincipal` — `DataAidTurnPrincipalService`
+
+Carries a trusted dispatch's Principal and business ids into its exact live Agent turn.
+
+A transport adapter must authenticate the dic-be workload, strictly parse the three ids, then call withTurn around synchronous Agent message insertion. The service holds only process-memory references and never writes identity or authorization data to the Session log.
+
+```ts cordis-catalog
+/**
+ * Bind one service-authenticated dic-be dispatch while inserting its Agent message.
+ * @param binding - principal and business ids parsed by the trusted transport adapter, never model arguments.
+ * @param operation - message insertion operation that emits `agent/inbox/inserted` before returning.
+ * @returns the exact value returned by `operation`.
+ * @throws when any principal or business id is malformed.
+ */
+withTurn<T>(binding: DataAidTrustedTurnBinding, operation: () => T): T
+
+/**
+ * Return the complete binding active for this exact Agent.
+ * @param agent - Agent that owns the model tool execution.
+ * @returns the immutable Principal and dic-be conversation/turn ids captured at insertion.
+ * @throws when the Agent has no bound authenticated turn or the turn has conflicting bindings.
+ */
+require(agent: Agent | undefined): DataAidTrustedTurnBinding
+```
+
+Types: [Agent](core.md)
+
+Source: [`packages/identity/authenticated-principal-data-aid/src/turn-principal.ts`](../../packages/identity/authenticated-principal-data-aid/src/turn-principal.ts)
+
 <a id="ctxdataquery--dataqueryruntime"></a>
 
 ### `ctx.dataQuery` — `DataQueryRuntime`

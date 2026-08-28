@@ -1,7 +1,7 @@
 {
   "name": "dsh-data-aid-runtime",
   "description": "Dependency-only deploy root for the controlled data-query DSH image",
-  "version": "0.0.1",
+  "version": "0.1.2-alpha.1",
   "private": true,
   "type": "module",
   "dependencies": {

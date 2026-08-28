@@ -67,7 +67,8 @@ export class McpClientRegistry extends Service {
    * @returns unvalidated raw MCP tool result for the consumer to validate.
    * @throws when the selected server has no live caller.
    */
-  call({ serverName, toolName, arguments: args, signal }: McpToolCallRequest): Promise<McpToolCallResult> {
+  call(request: McpToolCallRequest): Promise<McpToolCallResult> {
+    const { serverName, toolName, arguments: args, signal } = request
     const caller = this.callers.get(serverName)
     if (caller === undefined) {
       return Promise.reject(new Error(`mcp client "${serverName}" is unavailable`))

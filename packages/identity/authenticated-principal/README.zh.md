@@ -1,10 +1,25 @@
+---
+description: "Request-local authenticated Principal service definition for trusted DSH host transports and authorization consumers."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-authenticated-principal
 
 [English](README.md) | 中文
 
+## 概述
+
 `@deepseek-ai/dsh-authenticated-principal` 是 DSH Host 上已认证账户的 Service Definition。`AuthenticatedPrincipalService` 提供 `ctx.authenticatedPrincipal.current()`、`require()`、`withPrincipal()` 和 `withoutPrincipal()`；提供方实现 `authenticate(request, signal)`，并负责部署侧身份验证与权限查询。
 
 Principal 是 request-local 的进程状态。它从可信 transport request 开始，携带 data-aid 既有的身份映射与鉴权事实，并在返回的操作完成后清除。它绝不会复制到 Session、消息、匿名用户 id、Agent ownership 字段、Typert wire 参数或模型请求中。`freezeAuthenticatedPrincipal()` 会在发布前将 Principal 记录及权限数组浅冻结为只读值。
+
+## 目录
+
+- [模型体验](#model-experience)
+- [已知限制](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+-----
 
 ## Principal 字段
 
@@ -36,6 +51,7 @@ Consumer 不得接受模型或 Remote 参数中的 `user_id`、`data_role`、团
 
 `withPrincipal()` 会跟踪返回的同步值或 Promise。Service 释放时拒绝新的作用域，等待已返回的操作完成，然后才禁用 `AsyncLocalStorage`；脱离返回链的工作仍由分离它的子系统负责，不得继续持有鉴权能力。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 无，因为 Principal 与 transport request 对模型隐藏，不会向 prompt 或 session log 追加已认证账户或权限字段。
@@ -46,6 +62,18 @@ Consumer 不得接受模型或 Remote 参数中的 `user_id`、`data_role`、团
 
 ## 已知限制与暂缓事项
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **提供方负责信任判断**——Service Definition 不判断 forwarded header 是否来自 MSE、可信反向代理或签名 transport；提供方必须先完成该验证再解析身份。
 - **权限规则仍在 DSH 之外**——本包携带 resolver 输出但不包含既有 data-aid SQL，因此部署必须提供 resolver，并在映射或权限事实不可用时拒绝请求。
 - **只提供进程内传播**——worker、子进程、队列及后续 HTTP 边界必须重新认证并物化新的显式 Principal，不能期待 ALS 传播。
+
+<a id="dev-note"></a>
+### 开发备注
+
+<details>
+<summary>维护者工作上下文——点击展开</summary>
+
+无。
+
+</details>

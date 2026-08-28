@@ -4,11 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { Context, Service, symbols } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { apply as applyConnection, inject as connectionInject } from '@deepseek-ai/dsh-client-connection'
-import {
-  AuthenticatedPrincipalService,
-  PrincipalAuthenticationError,
-  type AuthenticatedPrincipal,
-} from '@deepseek-ai/dsh-authenticated-principal'
+import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
 import type { WebServer, WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
   bindTypertRemote,
@@ -22,6 +18,7 @@ import {
 } from '@deepseek-ai/dsh-typert-protocol'
 import TypertRegistry, { type TypertContribution } from '@deepseek-ai/dsh-typert-registry'
 import TypertGatewayService, { TypertGatewayError } from '@deepseek-ai/dsh-api-gateway'
+import { provideBrowserCredentials } from './browser-credentials.ts'
 
 interface FixtureAgent {
   readonly id: string
@@ -89,15 +86,6 @@ class GoalService extends Service {
   }
 
   @Remote
-  async currentPrincipal(): Promise<unknown> {
-    this.calls.push('currentPrincipal')
-    const principalService = this.ctx.get('authenticatedPrincipal')
-    if (principalService === undefined) throw new Error('fixture Principal service unavailable')
-    await Promise.resolve()
-    return principalService.require()
-  }
-
-  @Remote
   fail(request: unknown): never {
     void request
     this.calls.push('fail')
@@ -118,7 +106,6 @@ type FakeRpcHandler = (endpoint: string, payload: unknown, signal: AbortSignal) 
 
 class FakeConnectionService extends Service {
   channel: string | undefined
-  authority: string | undefined
   matches: ((endpoint: string) => boolean) | undefined
   handler: FakeRpcHandler | undefined
 
@@ -133,45 +120,22 @@ class FakeConnectionService extends Service {
         channel: string,
         matches: (endpoint: string) => boolean,
         handler: FakeRpcHandler,
-        options: { readonly authority: string },
       ) =>
         owner.effect(() => {
           this.channel = channel
-          this.authority = options.authority
           this.matches = matches
           this.handler = handler
           return () => {
             this.channel = undefined
-            this.authority = undefined
             this.matches = undefined
             this.handler = undefined
           }
         }),
     }
   }
-}
 
-class FixturePrincipalService extends AuthenticatedPrincipalService {
-  readonly requests: Request[] = []
-  reject = false
-
-  override async authenticate(request: Request, signal: AbortSignal): Promise<AuthenticatedPrincipal> {
-    void signal
-    this.requests.push(request)
-    const userId = request.headers.get('x-fixture-user')
-    if (this.reject || userId === null) throw new PrincipalAuthenticationError()
-    return fixturePrincipal(userId)
-  }
-}
-
-function fixturePrincipal(userId: string): AuthenticatedPrincipal {
-  return {
-    ddUserId: userId as AuthenticatedPrincipal['ddUserId'],
-    gkUserId: `gk:${userId}` as AuthenticatedPrincipal['gkUserId'],
-    gimpStaffId: `staff:${userId}` as AuthenticatedPrincipal['gimpStaffId'],
-    dataRole: 'query' as AuthenticatedPrincipal['dataRole'],
-    teamCodes: [`team:${userId}`] as unknown as AuthenticatedPrincipal['teamCodes'],
-    dataOrgCodes: [`org:${userId}`] as unknown as AuthenticatedPrincipal['dataOrgCodes'],
+  requestRejection(): undefined {
+    return undefined
   }
 }
 
@@ -204,6 +168,22 @@ async function serveRoute(route: WebRoute): Promise<{ readonly origin: string; c
       })
     }),
   }
+}
+
+/** Exchange a Connection launch token without mounting the frontend fallback. */
+function browserCookie(connection: HostConnectionHandle, origin: string): string {
+  const target = new URL(connection.authenticatedUrl(origin))
+  let setCookie: string | undefined
+  connection.authorizeIndex({
+    method: 'GET',
+    url: `${target.pathname}${target.search}`,
+    headers: { host: target.host },
+  }, {
+    writeHead(_status, headers) { setCookie = headers?.['set-cookie'] },
+    end() {},
+  })
+  if (setCookie === undefined) throw new Error('gateway fixture did not receive an authentication cookie')
+  return setCookie.split(';', 1)[0]!
 }
 
 class FirstSharedService extends Service {
@@ -773,7 +753,7 @@ describe('TypertGatewayService', () => {
     expect(service.calls).toEqual([])
   })
 
-  it('distinguishes strict input and result validation failures', async () => {
+  it('validates strict input without decoding the business result', async () => {
     const { ctx, service } = await setup()
     registerStrict(ctx, [strictOnlyDescriptor()])
 
@@ -784,27 +764,23 @@ describe('TypertGatewayService', () => {
     }), 'input-invalid')
 
     service.nextResult = { title: 1 }
-    await expectCode(ctx.typertGateway.invoke({
+    await expect(ctx.typertGateway.invoke({
       namespace: 'goals',
       method: 'strictOnly',
       args: { request: { title: 'ship' } },
-    }), 'result-invalid')
+    })).resolves.toEqual({ title: 1 })
   })
 
-  it('rejects non-JSON values after strict codec validation', async () => {
+  it('does not inspect non-JSON business results', async () => {
     const { ctx, service } = await setup()
-    const descriptor = strictOnlyDescriptor()
-    registerStrict(ctx, [{
-      ...descriptor,
-      result: strictCodec('@fixture/gateway#UnknownResult', z.unknown()),
-    }])
+    registerStrict(ctx, [strictOnlyDescriptor()])
     service.nextResult = 1n
 
-    await expectCode(ctx.typertGateway.invoke({
+    await expect(ctx.typertGateway.invoke({
       namespace: 'goals',
       method: 'strictOnly',
       args: { request: { title: 'ship' } },
-    }), 'result-invalid')
+    })).resolves.toBe(1n)
   })
 
   it.each([
@@ -839,7 +815,7 @@ describe('TypertGatewayService', () => {
     expect(service.calls).toContain('passthrough')
   })
 
-  it('rejects cyclic SRC input and non-JSON SRC results', async () => {
+  it('rejects cyclic SRC input without inspecting SRC results', async () => {
     const { ctx, service } = await setup()
     const cyclic: { self?: unknown } = {}
     cyclic.self = cyclic
@@ -849,12 +825,13 @@ describe('TypertGatewayService', () => {
       args: { value: cyclic },
     }), 'input-invalid')
 
-    service.nextResult = new Date(0)
-    await expectCode(ctx.typertGateway.invoke({
+    const result = new Date(0)
+    service.nextResult = result
+    await expect(ctx.typertGateway.invoke({
       namespace: 'goals',
       method: 'passthrough',
       args: { value: null },
-    }), 'result-invalid')
+    })).resolves.toBe(result)
   })
 
   it('accepts dense JSON and rejects decorated arrays and object properties', async () => {
@@ -999,7 +976,7 @@ describe('TypertGatewayService', () => {
     await gatewayFiber
     await ctx.plugin(GoalService)
     const connection = rawConnection(ctx)
-    expect(connection).toMatchObject({ channel: '/api', authority: 'trusted-host' })
+    expect(connection).toMatchObject({ channel: '/api' })
 
     registerAgentLookup(ctx, { id: 'agent-1' })
     registerStrict(ctx, [createDescriptor(), maybeDescriptor()])
@@ -1084,105 +1061,57 @@ describe('TypertGatewayService', () => {
     expect(connection.handler).toBeUndefined()
   })
 
-  it('authenticates each HTTP Remote invocation with a request-local Principal', async () => {
-    const ctx = new Context()
-    const routes: WebRoute[] = []
-    ctx.provide('webServer', fakeHttpServer(routes) as WebServer)
-    const connectionFiber = ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
-    await connectionFiber
-    await ctx.plugin(TypertRegistry)
-    const principalFiber = ctx.plugin(FixturePrincipalService)
-    await principalFiber
-    const gatewayFiber = ctx.plugin(TypertGatewayService)
-    await gatewayFiber
-    const goalFiber = ctx.plugin(GoalService)
-    await goalFiber
-    const server = await serveRoute(routes[0]!)
-
-    const call = (userId?: string): Promise<Response> => fetch(`${server.origin}/api/goals/currentPrincipal`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(userId === undefined ? {} : { 'x-fixture-user': userId }),
-      },
-      body: JSON.stringify({
-        type: 'client-request',
-        rpcId: userId === undefined ? 'rpc-missing-user' : `rpc-${userId}`,
-        method: 'goals/currentPrincipal',
-        payload: { args: {} },
-      }),
-    })
-
-    try {
-      const [alice, bob] = await Promise.all([call('alice'), call('bob')])
-      await expect(alice.json()).resolves.toMatchObject({
-        result: { ok: true, value: { ddUserId: 'alice', gkUserId: 'gk:alice' } },
-      })
-      await expect(bob.json()).resolves.toMatchObject({
-        result: { ok: true, value: { ddUserId: 'bob', gkUserId: 'gk:bob' } },
-      })
-
-      const missing = await call()
-      expect(await missing.json()).toMatchObject({
-        result: { ok: false, error: { code: 'unauthorized', message: 'authentication failed', details: {} } },
-      })
-      const principalService = ctx.get('authenticatedPrincipal')
-      if (principalService === undefined) throw new Error('fixture Principal service was not installed')
-      expect(principalService.current()).toBeUndefined()
-    } finally {
-      await server.close()
-      await goalFiber.dispose()
-      await gatewayFiber.dispose()
-      await principalFiber.dispose()
-      await connectionFiber.dispose()
-    }
-  })
-
-  it('returns unauthorized when an authenticated RPC handler lacks Fetch transport metadata', async () => {
+  it('claims and validates in-process Remote event results for the active Client generation', async () => {
     const ctx = new Context()
     await ctx.plugin(TypertRegistry)
-    const connectionFiber = ctx.plugin(FakeConnectionService)
-    await connectionFiber
-    const principalFiber = ctx.plugin(FixturePrincipalService)
-    await principalFiber
-    const gatewayFiber = ctx.plugin(TypertGatewayService)
-    await gatewayFiber
-    const handler = rawConnection(ctx).handler
+    await ctx.plugin(FakeConnectionService)
+    await ctx.plugin(TypertGatewayService)
+    const connection = rawConnection(ctx)
+    const handler = connection.handler
     if (handler === undefined) throw new Error('fixture Connection did not retain the /api interceptor')
+    expect(connection.matches?.('$events/result')).toBe(true)
 
-    await expect(handler('goals/currentPrincipal', { args: {} }, new AbortController().signal)).resolves.toEqual({
-      ok: false,
-      error: { code: 'unauthorized', message: 'authentication failed', details: {} },
+    const result = {
+      args: { clientId: 'missing-client', eventId: 'missing', outcome: { kind: 'next' } },
+    }
+    const inactive = await handler('$events/result', result, new AbortController().signal)
+    expect(inactive).toMatchObject({ ok: false, error: { code: 'internal' } })
+    if (inactive.ok) throw new Error('inactive Remote event result unexpectedly succeeded')
+    expect(inactive.error.message).toContain('identifies no active event stream')
+
+    const unregister = ctx.typertGateway.registerRemoteEvents(signal => (async function* () {
+      await new Promise<void>((resolve) => {
+        if (signal.aborted) resolve()
+        else signal.addEventListener('abort', () => { resolve() }, { once: true })
+      })
+    })(), { home: '/home/fixture' })
+    const carrier = new AbortController()
+    const events = rawGatewayEventHarness(ctx).openRemoteEvents({ args: {} }, carrier.signal)
+    const opening = await events.next()
+    expect(opening).toMatchObject({
+      done: false,
+      value: { type: 'ready', host: { home: '/home/fixture' } },
+    })
+    if (opening.done) throw new Error('Remote event stream ended before ready')
+    const clientId: unknown = Reflect.get(opening.value as object, 'clientId')
+    if (typeof clientId !== 'string') throw new Error('Remote event stream omitted its Client id')
+
+    for (const payload of [null, [], {}, { other: {} }]) {
+      const invalid = await handler('$events/result', payload, carrier.signal)
+      expect(invalid).toMatchObject({ ok: false, error: { code: 'internal' } })
+      if (invalid.ok) throw new Error('invalid Remote event result payload unexpectedly succeeded')
+      expect(invalid.error.message).toContain('requires exactly one plain-object args field')
+    }
+    await expect(handler('$events/result', {
+      args: { clientId, eventId: 'missing', outcome: { kind: 'next' } },
+    }, carrier.signal)).resolves.toEqual({
+      ok: true,
+      value: undefined,
     })
 
-    await gatewayFiber.dispose()
-    await principalFiber.dispose()
-    await connectionFiber.dispose()
-  })
-
-  it('clears ambient Principals for direct invokes and requires the service for explicit Principals', async () => {
-    const { ctx } = await setup()
-    const principalFiber = ctx.plugin(FixturePrincipalService)
-    await principalFiber
-    const principalService = ctx.get('authenticatedPrincipal')
-    if (principalService === undefined) throw new Error('fixture Principal service was not installed')
-    const principal = fixturePrincipal('ambient')
-
-    await principalService.withPrincipal(principal, async () => {
-      await expect(ctx.typertGateway.invoke({
-        namespace: 'goals', method: 'currentPrincipal', args: {},
-      })).rejects.toThrow('no authenticated principal is active')
-      await expect(ctx.typertGateway.invoke({
-        namespace: 'goals', method: 'currentPrincipal', args: {}, principal,
-      })).resolves.toMatchObject({ ddUserId: 'ambient' })
-      expect(principalService.current()).toBe(principal)
-    })
-    await principalFiber.dispose()
-
-    const noPrincipalService = await setup()
-    await expect(noPrincipalService.ctx.typertGateway.invoke({
-      namespace: 'goals', method: 'currentPrincipal', args: {}, principal,
-    })).rejects.toMatchObject({ code: 'authentication-unavailable' })
+    await events.return(undefined)
+    await unregister()
+    await ctx.fiber.dispose()
   })
 
   it('preserves a lookup policy rejection through the Connection RPC result', async () => {
@@ -1242,6 +1171,7 @@ describe('TypertGatewayService', () => {
   it('dispatches claimed invocations through /api and leaves unclaimed endpoints to its fallback', async () => {
     const ctx = new Context().extend({ fixtureScope: 'http-caller' })
     const routes: WebRoute[] = []
+    provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes) as WebServer)
     const connectionFiber = ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
     await connectionFiber
@@ -1255,11 +1185,12 @@ describe('TypertGatewayService', () => {
     let strictActive = true
     expect(routes).toHaveLength(1)
     const server = await serveRoute(routes[0]!)
+    const cookie = browserCookie(ctx.connection, server.origin)
 
     try {
       const response = await fetch(`${server.origin}/api/goals/create`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', cookie },
         body: JSON.stringify({
           type: 'client-request',
           rpcId: 'rpc-http',
@@ -1279,7 +1210,7 @@ describe('TypertGatewayService', () => {
 
       const invalid = await fetch(`${server.origin}/api/goals/create`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', cookie },
         body: JSON.stringify({
           type: 'client-request',
           rpcId: 'rpc-invalid',
@@ -1303,7 +1234,7 @@ describe('TypertGatewayService', () => {
       strictActive = false
       const withdrawn = await fetch(`${server.origin}/api/goals/create`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', cookie },
         body: JSON.stringify({
           type: 'client-request',
           rpcId: 'rpc-withdrawn',
@@ -1323,7 +1254,10 @@ describe('TypertGatewayService', () => {
       })
       expect(JSON.stringify(withdrawnBody)).toContain('strict definition was withdrawn')
 
-      const unclaimed = await fetch(`${server.origin}/api/legacy/list`, { method: 'POST' })
+      const unclaimed = await fetch(`${server.origin}/api/legacy/list`, {
+        method: 'POST',
+        headers: { cookie },
+      })
       expect(unclaimed.status).toBe(404)
     } finally {
       await server.close()
@@ -1367,6 +1301,17 @@ function rawConnection(ctx: Context): FakeConnectionService {
   return receiver[symbols.original] ?? receiver
 }
 
+interface GatewayEventHarness {
+  openRemoteEvents(payload: unknown, signal: AbortSignal): AsyncGenerator
+}
+
+function rawGatewayEventHarness(ctx: Context): GatewayEventHarness {
+  const receiver = ctx.get('typertGateway') as unknown as GatewayEventHarness & {
+    [symbols.original]?: GatewayEventHarness
+  }
+  return receiver[symbols.original] ?? receiver
+}
+
 function registerStrict(ctx: Context, descriptors: readonly InvocationDescriptor[]): () => Promise<void> {
   return ctx.typert.register({
     package: '@fixture/gateway',
@@ -1395,6 +1340,7 @@ function contextProvider(context: Context) {
   return {
     wire: 'agentId',
     wireTypeSymbol: '@fixture/domain#AgentId',
+    identity: (candidate: Context) => candidate === context ? 'agent-1' : undefined,
     resolve: (id: string) => id === 'agent-1' ? context : undefined,
   }
 }

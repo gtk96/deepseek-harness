@@ -1,10 +1,25 @@
+---
+description: "Data Aid authentication, trusted-turn ingress, callbacks, health probes, and controlled-query adapters for DIC-BE deployments."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-authenticated-principal-data-aid
 
 English | [中文](README.zh.md)
 
+## Summary
+
 `DataAidGatewayAuthenticator` is the data-aid Service Provider for `@deepseek-ai/dsh-authenticated-principal`. It verifies a deployment-owned gateway trust hook, strictly parses the existing `gk-service-user` and optional `gk-service-app` headers, then calls a resolver that owns the existing identity mapping and authorization SQL/service.
 
 This package deliberately does not treat `X-Forwarded-Host` or the presence of `gk-service-user` as proof by itself. `DataAidMseGatewayAuthenticator` provides the supported MSE deployment verifier: it accepts visitor headers only when `@deepseek-ai/dsh-client-connection` recorded a configured direct TCP proxy IP for the Fetch request. MSE or the enterprise SSO proxy owns DingTalk login, strips browser-supplied identity headers, and injects the verified headers upstream. A false result, malformed or missing visitor header, missing identity mapping, missing permission facts, or resolver failure all fail closed as authentication failure.
+
+## Table of Contents
+
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
 
 ## Gateway visitor parsing
 
@@ -167,6 +182,7 @@ Production composes the `@deepseek-ai/dsh-data-query-dic-be` Provider. It signs 
 The shipped `data-aid` profile starts from its own closed bundle; its preset contains exactly `data_query` and no raw MCP capability. The bundle reads `DATA_AID_QUERY_ASSERTION_KEY_RING` as a JSON object plus `DATA_AID_QUERY_ASSERTION_ACTIVE_KID`; the endpoint, assertion bounds, semantic limits, and dedicated service-ingress listener, path, identity, token, body, and question limits use the `DATA_AID_QUERY_*` and `DATA_AID_INGRESS_*` settings shown in `apps/cli/config/data-aid-mse/.env.example`. Keep key material out of source control.
 
 
+<a id="model-experience"></a>
 ## Model Experience
 
 ### `data_query`
@@ -185,6 +201,18 @@ The schema is stable across turns and does not itself invalidate the prefix cach
 
 ## Known Limitations and Deferred Work
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **Ingress network controls remain deployment-owned** — the shipped strict route authenticates the fixed service identity and bearer secret, but its WebServer does not provide TLS, service-mesh policy, rate limiting, or secret rotation.
 - **Real broker and MaxCompute acceptance is external** — local HTTP and keyless snapshots prove DSH composition and protocol handling, not production authorization, network policy, or governed-data correctness.
 - **Direct query tools remain local-only** — the separate `data-aid-direct` preset uses service credentials without per-user business-data authorization and must not be exposed through shared or public listeners.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers ? click to expand</summary>
+
+None.
+
+</details>

@@ -1,8 +1,23 @@
+---
+description: "Credentialed DIC-BE HTTP provider for complete, bounded controlled semantic query results."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-data-query-dic-be
 
 [English](README.md) | 中文
 
+## 概述
+
 本包是 `ctx.dataQuery` 的带凭据 DIC-BE HTTP Provider。它使用原生 `fetch` 向固定路径发送一次 `POST`，拒绝重定向，让取消与截止时间覆盖响应正文读取，并且只接受完整且有界的 JSON 表格。DIC-BE 业务拒绝只接受精确的统一 `{code:200,bizCode:"DQ_*",msg,data:{}}` envelope；Provider 只把 `bizCode` 保留为 `DataQueryError` code，绝不暴露 broker message 或 data。
+
+## 目录
+
+- [模型体验](#model-experience)
+- [已知限制](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+-----
 
 ## 配置
 
@@ -12,6 +27,7 @@ JWT header 精确等于 `{alg:"HS256",typ:"JWT",kid}`。payload 精确包含 `is
 
 成功响应精确包含五个字段：`{columns, rows, rowCount, complete:true, truncated:false}`。column 必须是唯一字符串，row 必须为矩形，`rowCount` 必须一致。cell 可包含嵌套的普通稠密 JSON object 与 array；所有数值必须 finite 且可无损表示，字符串有长度上限，并以迭代式逐 cell 深度／节点上限拒绝病态嵌套。额外字段、非 JSON 内容、重定向、截断、超出行数上限和格式错误的值都会 fail closed。完整 HTTP 文档和规范化结果都按 UTF-8 byte 限制，包括精确边界与多字节处理。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 通过 Data Aid `data_query` Consumer 间接影响；本 Provider 不贡献提示词或工具 schema。
@@ -22,5 +38,17 @@ JWT header 精确等于 `{alg:"HS256",typ:"JWT",kid}`。payload 精确包含 `is
 
 ## 已知限制与暂缓事项
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **HS256 轮换由外部协调**——DSH 选择 active `kid`，但部署必须同步 DIC-BE 的验证 key ring，并在重叠期后移除旧 key。
 - **broker 授权属于外部职责**——本 Provider 证明调用方上下文并验证传输结果；DIC-BE 仍负责防重放以及全部数据集、字段、谓词与行级授权。
+
+<a id="dev-note"></a>
+### 开发备注
+
+<details>
+<summary>维护者工作上下文——点击展开</summary>
+
+无。
+
+</details>

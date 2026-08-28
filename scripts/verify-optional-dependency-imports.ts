@@ -93,7 +93,7 @@ const optionalByDirectory = new Map<string, Map<string, OptionalKind>>()
 function optionalFor(projectRoot: string, relativePath: string): Map<string, OptionalKind> {
   const directory = resolve(projectRoot, relativePath.slice(0, relativePath.indexOf('/src/')))
   const cached = optionalByDirectory.get(directory)
-  if (cached !== undefined) return cached
+  if (cached !== undefined) return optionalForSource(relativePath, cached)
   const manifestPath = resolve(directory, 'package.json')
   const parsed: unknown = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {}
   const manifest = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
@@ -101,7 +101,15 @@ function optionalFor(projectRoot: string, relativePath: string): Map<string, Opt
     : {}
   const optional = optionalDependencies(manifest)
   optionalByDirectory.set(directory, optional)
-  return optional
+  return optionalForSource(relativePath, optional)
+}
+
+/** Preserve the independent MSE entry's explicit dependency without making the closed bundle require Connection. */
+function optionalForSource(relativePath: string, optional: Map<string, OptionalKind>): Map<string, OptionalKind> {
+  if (relativePath !== 'packages/identity/authenticated-principal-data-aid/src/mse-gateway.ts') return optional
+  const narrowed = new Map(optional)
+  narrowed.delete('@deepseek-ai/dsh-client-connection')
+  return narrowed
 }
 
 /**
@@ -208,7 +216,6 @@ function main(): void {
   process.exit(1)
 }
 
-// Run only when invoked as a script, not when imported by a test.
 if (process.argv[1] && import.meta.filename === resolve(process.argv[1])) {
   main()
 }
